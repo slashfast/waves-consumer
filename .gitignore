@@ -1,3 +1,4 @@
 .env
 wavesconsumer
 *.json
+.idea
