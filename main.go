@@ -26,7 +26,7 @@ var restApiHost string
 func decomposeBalanceUpdate(
 	ra map[string]ReferencedAsset,
 	bu *events.StateUpdate_BalanceUpdate,
-) (string, ReferencedAsset, uint64, bool) {
+) (string, ReferencedAsset, uint64, int64, bool) {
 	var asset ReferencedAsset
 
 	if assetId := bu.AmountAfter.AssetId; assetId != nil {
@@ -36,9 +36,11 @@ func decomposeBalanceUpdate(
 	}
 
 	address := toBase58String(bu.Address)
-	after := uint64(bu.AmountAfter.Amount)
-	isInbound := (bu.AmountAfter.Amount - bu.AmountBefore) > 0
-	return address, asset, after, isInbound
+	before := bu.AmountBefore
+	after := bu.AmountAfter.Amount
+	delta := after - before
+	isInbound := delta > 0
+	return address, asset, uint64(after), delta, isInbound
 }
 
 func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []BalanceUpdate {
@@ -47,7 +49,7 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 	appendField := update.GetAppend()
 	block := appendField.GetBlock()
 	height := uint32(update.Height)
-	blockTimestamp := time.Unix(0, block.Block.Header.Timestamp*int64(time.Millisecond))
+	blockTimestamp := time.Unix(0, block.Block.Header.Timestamp*int64(time.Millisecond)).UTC()
 	stateUpdatesBalances := appendField.StateUpdate.GetBalances()
 	transactionIds := appendField.TransactionIds
 	transactionStateUpdates := appendField.TransactionStateUpdates
@@ -64,21 +66,21 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 	}
 
 	for _, bu := range stateUpdatesBalances {
-		address, asset, after, isInbound := decomposeBalanceUpdate(referencedAssets, bu)
-
+		address, asset, after, delta, isInbound := decomposeBalanceUpdate(referencedAssets, bu)
 		insertions = append(insertions, BalanceUpdate{
 			height:         height,
-			asset:          asset.id,
+			assetId:        asset.id,
 			address:        address,
 			txVersion:      0,
 			txType:         0,
-			tx:             "",
+			txId:           "",
 			balance:        after,
+			delta:          delta,
 			assetDecimals:  asset.decimals,
 			assetName:      asset.name,
 			isInbound:      isInbound,
 			isStateUpdate:  true,
-			timestamp:      blockTimestamp,
+			txTimestamp:    blockTimestamp,
 			blockTimestamp: blockTimestamp,
 		})
 	}
@@ -91,31 +93,32 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 		var txVersion uint8
 
 		if txData := block.Block.Transactions[i].GetWavesTransaction(); txData != nil {
-			timestamp = time.Unix(0, txData.Timestamp*int64(time.Millisecond))
+			timestamp = time.Unix(0, txData.Timestamp*int64(time.Millisecond)).UTC()
 			txVersion = uint8(txData.Version)
 			txType = TxTypes[reflect.TypeOf(txData.Data).Elem().Name()]
 		} else {
-			timestamp = time.Unix(0, appendField.TransactionsMetadata[i].GetEthereum().Timestamp*int64(time.Millisecond))
+			timestamp = time.Unix(0, appendField.TransactionsMetadata[i].GetEthereum().Timestamp*int64(time.Millisecond)).UTC()
 			txVersion = 0
 			txType = TxTypes["Transaction_Ethereum"]
 		}
 
 		for _, bu := range tsu.Balances {
-			address, asset, after, isInbound := decomposeBalanceUpdate(referencedAssets, bu)
+			address, asset, after, delta, isInbound := decomposeBalanceUpdate(referencedAssets, bu)
 
 			insertions = append(insertions, BalanceUpdate{
 				height:         height,
-				asset:          asset.id,
+				assetId:        asset.id,
 				address:        address,
 				txVersion:      txVersion,
 				txType:         txType,
-				tx:             txId,
+				txId:           txId,
 				balance:        after,
+				delta:          delta,
 				assetDecimals:  asset.decimals,
 				assetName:      asset.name,
 				isInbound:      isInbound,
 				isStateUpdate:  false,
-				timestamp:      timestamp,
+				txTimestamp:    timestamp,
 				blockTimestamp: blockTimestamp,
 			})
 		}
@@ -127,51 +130,54 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 
 func getChInput(ch chan *blockchainupdates.GetBlockUpdateResponse) proto.Input {
 	height := proto.ColUInt32{}
-	asset := proto.ColStr{}
-	address := proto.ColStr{}
+	assetId := proto.ColStr{}
+	address := proto.ColFixedStr{Size: 35}
 	txVersion := proto.ColUInt8{}
 	txType := proto.ColUInt8{}
-	tx := proto.ColStr{}
+	txId := proto.ColStr{}
 	balance := proto.ColUInt64{}
+	delta := proto.ColInt64{}
 	assetDecimals := proto.ColUInt8{}
 	assetName := proto.ColStr{}
 	isInbound := proto.ColBool{}
 	isStateUpdate := proto.ColBool{}
-	timestamp := new(proto.ColDateTime64).WithPrecision(proto.PrecisionMilli)
-	blockTimestamp := new(proto.ColDateTime64).WithPrecision(proto.PrecisionMilli)
+	txTimestamp := proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true}
+	blockTimestamp := proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true}
 
 	for u := range ch {
 		for _, ins := range getInsertion(u) {
 			height.Append(ins.height)
-			asset.Append(ins.asset)
-			address.Append(ins.address)
+			assetId.Append(ins.assetId)
+			address.Append([]byte(ins.address))
 			txVersion.Append(ins.txVersion)
 			txType.Append(ins.txType)
-			tx.Append(ins.tx)
+			txId.Append(ins.txId)
 			balance.Append(ins.balance)
+			delta.Append(ins.delta)
 			assetDecimals.Append(ins.assetDecimals)
 			assetName.Append(ins.assetName)
 			isInbound.Append(ins.isInbound)
 			isStateUpdate.Append(ins.isStateUpdate)
-			timestamp.Append(ins.timestamp)
+			txTimestamp.Append(ins.txTimestamp)
 			blockTimestamp.Append(ins.blockTimestamp)
 		}
 	}
 
 	return proto.Input{
 		{Name: "height", Data: &height},
-		{Name: "asset", Data: &asset},
+		{Name: "asset_id", Data: &assetId},
 		{Name: "address", Data: &address},
 		{Name: "tx_version", Data: &txVersion},
 		{Name: "tx_type", Data: &txType},
-		{Name: "tx", Data: &tx},
+		{Name: "tx_id", Data: &txId},
 		{Name: "balance", Data: &balance},
+		{Name: "delta", Data: &delta},
 		{Name: "asset_decimals", Data: &assetDecimals},
 		{Name: "asset_name", Data: &assetName},
 		{Name: "is_inbound", Data: &isInbound},
 		{Name: "is_state_update", Data: &isStateUpdate},
-		{Name: "timestamp", Data: timestamp},
-		{Name: "block_timestamp", Data: blockTimestamp},
+		{Name: "tx_timestamp", Data: &txTimestamp},
+		{Name: "block_timestamp", Data: &blockTimestamp},
 	}
 }
 
@@ -299,7 +305,7 @@ func main() {
 	var maxHeightResult proto.ColUInt32
 
 	if err := dbConn.Do(dbCtx, ch.Query{
-		Body:   "SELECT max(height) FROM blocks",
+		Body:   "SELECT max(height) FROM balances_updates",
 		Result: proto.ResultColumn{Data: &maxHeightResult},
 	}); err != nil {
 		panic(err)
@@ -319,8 +325,6 @@ func main() {
 		blocksStep = estimatedBlocks
 	}
 
-	var chWg sync.WaitGroup
-
 	start := time.Now()
 	workTime := time.Duration(0)
 	for i := 1; i <= batchCount; i++ {
@@ -331,24 +335,17 @@ func main() {
 
 		insertions := getChInput(results)
 
-		chWg.Add(1)
-		go func() {
-			defer chWg.Done()
+		if err := dbConn.Do(context.Background(), ch.Query{
+			Body:  "INSERT INTO balances_updates VALUES",
+			Input: insertions,
+			Settings: []ch.Setting{
+				{Key: "async_insert", Value: "1"},
+				{Key: "wait_for_async_insert", Value: "0"},
+			},
+		}); err != nil {
+			panic(err)
+		}
 
-			if err := dbConn.Do(dbCtx, ch.Query{
-				Body:  "INSERT INTO blocks VALUES",
-				Input: proto.Input{insertions[0]},
-			}); err != nil {
-				panic(err)
-			}
-
-			if err := dbConn.Do(dbCtx, ch.Query{
-				Body:  "INSERT INTO balances_updates VALUES",
-				Input: insertions,
-			}); err != nil {
-				panic(err)
-			}
-		}()
 		counter = counter + BlocksStep
 		workTime += time.Since(start)
 		avgBatchTime := workTime.Seconds() / float64(i)
@@ -363,8 +360,6 @@ func main() {
 			float64(batchCount-i)*avgBatchTime/60/60,
 		)
 	}
-
-	chWg.Wait()
 
 	log.Printf("Total: %.2fs", time.Since(start).Seconds())
 }

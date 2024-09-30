@@ -4,17 +4,18 @@ import "time"
 
 type BalanceUpdate struct {
 	height         uint32
-	asset          string
+	assetId        string
 	address        string
 	txVersion      uint8
 	txType         uint8
-	tx             string
+	txId           string
 	balance        uint64
+	delta          int64
 	assetDecimals  uint8
 	assetName      string
 	isInbound      bool
 	isStateUpdate  bool
-	timestamp      time.Time
+	txTimestamp    time.Time
 	blockTimestamp time.Time
 }
 
