@@ -32,7 +32,8 @@ func decomposeBalanceUpdate(
 
 	if assetId := bu.AmountAfter.AssetId; assetId != nil {
 		b58assetId := toBase58String(assetId)
-		asset, ok := referencedAssets[b58assetId]
+		var ok bool
+		asset, ok = referencedAssets[b58assetId]
 		if !ok {
 			asset = getAssetById(b58assetId)
 			referencedAssets[b58assetId] = asset
@@ -275,8 +276,8 @@ func main() {
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(math.MaxInt32*256)),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                1 * time.Minute,  // send pings every 10 seconds if there is no activity
-			Timeout:             30 * time.Second, // wait 1 second for ping back
+			Time:                1 * time.Minute,
+			Timeout:             30 * time.Second,
 			PermitWithoutStream: true,
 		}),
 	)
@@ -292,13 +293,11 @@ func main() {
 	}()
 
 	dbName := os.Getenv("CH_DATABASE")
-
 	dbCtx := context.Background()
 	dbConn, err := ch.Dial(
 		dbCtx,
 		ch.Options{
-			Address: os.Getenv("CH_HOSTNAME") +
-				":" + os.Getenv("CH_PORT"),
+			Address:  os.Getenv("CH_HOSTNAME") + ":" + os.Getenv("CH_PORT"),
 			Database: dbName,
 			User:     os.Getenv("CH_USER"),
 			Password: os.Getenv("CH_PASSWORD"),
@@ -314,14 +313,11 @@ func main() {
 
 	client := blockchainupdates.NewBlockchainUpdatesApiClient(grpcConn)
 
-	// probe
-	// consume_ctx := context.Background()
-	// probe_ctx, cancel_probe_ctx := context.WithTimeout(consume_ctx, 1*time.Second)
+	// Проверка соединения
 	if _, err := client.GetBlockUpdate(
 		context.Background(),
 		&blockchainupdates.GetBlockUpdateRequest{Height: 1},
 	); err != nil {
-		// cancel_probe_ctx()
 		panic(err)
 	} else {
 		log.Println("Probe OK")
@@ -333,39 +329,50 @@ func main() {
 		}
 	}()
 
+	// Получаем начальную максимальную высоту из базы данных
 	var maxHeightResult proto.ColUInt32
-
 	if err := dbConn.Do(dbCtx, ch.Query{
 		Body:   "SELECT max(height) FROM balances_updates",
 		Result: proto.ResultColumn{Data: &maxHeightResult},
 	}); err != nil {
 		panic(err)
 	}
+	currentHeight := int32(maxHeightResult[0]) // Начальная высота из базы данных
+	log.Printf("Starting from height: %d", currentHeight)
 
-	counter := int32(maxHeightResult[0])
+	newBlockchainHeight := getCurrentHeight() // Запрос текущей высоты блокчейна
 
-	log.Printf("Consume from: %d", counter)
-
-	toHeight := getCurrentHeight()
-
-	estimatedBlocks := toHeight - counter
-	batchCount := int(estimatedBlocks / BlocksStep)
+	var heightDiff int32
 	blocksStep := BlocksStep
+	var prevBlockStep int32 = 0 // Переменная для хранения предыдущей разницы
 
-	if estimatedBlocks < blocksStep {
-		blocksStep = estimatedBlocks
-	}
+	for {
+		heightDiff = newBlockchainHeight - currentHeight
+		realTimeMode := !(heightDiff >= BlocksStep)
 
-	start := time.Now()
-	workTime := time.Duration(0)
-	for i := 1; i <= batchCount; i++ {
-		from := counter + 1
-		start := time.Now()
+		if realTimeMode {
+			newBlockchainHeight = getCurrentHeight() // Запрос текущей высоты блокчейна
+			log.Printf("DB Height: %d, Blockchain Height: %d", currentHeight, newBlockchainHeight)
+			heightDiff = newBlockchainHeight - currentHeight
+			if heightDiff == 0 {
+				log.Println("No new blocks. Waiting for 1 minute...")
+				time.Sleep(1 * time.Minute)
+				continue
+			} else if heightDiff < 0 {
+				log.Panicln("Height difference is negative! Possible data inconsistency.")
+			}
+			blocksStep = heightDiff
+		}
+
+		// Печатаем информацию только если разница отличается от предыдущей
+		if prevBlockStep != blocksStep {
+			log.Printf("Processing blocks from height %d to %d with step %d", currentHeight, newBlockchainHeight, blocksStep)
+		}
+
 		results := make(chan *blockchainupdates.GetBlockUpdateResponse, blocksStep)
-		getBlocks(client, results, from, blocksStep)
+		getBlocks(client, results, currentHeight+1, blocksStep)
 
 		insertions := getChInput(results)
-
 		if err := dbConn.Do(context.Background(), ch.Query{
 			Body:  "INSERT INTO balances_updates VALUES",
 			Input: insertions,
@@ -377,20 +384,10 @@ func main() {
 			panic(err)
 		}
 
-		counter = counter + BlocksStep
-		workTime += time.Since(start)
-		avgBatchTime := workTime.Seconds() / float64(i)
-		log.Printf(
-			"Batch:\t%d/%d Range:\t(%d-%d) Time:\t%.2fs Avg:\t%.2fs ETA:\t%.2fh",
-			i,
-			batchCount,
-			from,
-			counter,
-			time.Since(start).Seconds(),
-			avgBatchTime,
-			float64(batchCount-i)*avgBatchTime/60/60,
-		)
-	}
+		// Обновляем текущую высоту
+		currentHeight += blocksStep
+		log.Printf("Updated current height to: %d", currentHeight)
 
-	log.Printf("Total: %.2fs", time.Since(start).Seconds())
+		prevBlockStep = blocksStep
+	}
 }
