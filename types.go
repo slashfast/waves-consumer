@@ -28,3 +28,25 @@ type ReferencedAsset struct {
 type BlocksHeightResponse struct {
 	Height int32 `json:"height"`
 }
+
+type AssetDetails struct {
+	AssetId              string `json:"assetId"`
+	Name                 string `json:"name"`
+	Description          string `json:"description"`
+	Quantity             int64  `json:"quantity"`
+	Decimals             int    `json:"decimals"`
+	IssueHeight          int    `json:"issueHeight"`
+	IssueTimestamp       int64  `json:"issueTimestamp"`
+	Issuer               string `json:"issuer"`
+	IssuerPublicKey      string `json:"issuerPublicKey"`
+	Reissuable           bool   `json:"reissuable"`
+	Scripted             bool   `json:"scripted"`
+	SequenceInBlock      int    `json:"sequenceInBlock"`
+	MinSponsoredAssetFee int64  `json:"minSponsoredAssetFee"`
+	OriginTransactionId  string `json:"originTransactionId"`
+	ScriptDetails        struct {
+		ScriptComplexity int    `json:"scriptComplexity"`
+		Script           string `json:"script"`
+		ScriptText       string `json:"scriptText"`
+	} `json:"scriptDetails"`
+}

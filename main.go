@@ -22,15 +22,21 @@ import (
 )
 
 var restApiHost string
+var referencedAssets = make(map[string]ReferencedAsset)
+var httpClient = http.Client{}
 
 func decomposeBalanceUpdate(
-	ra map[string]ReferencedAsset,
 	bu *events.StateUpdate_BalanceUpdate,
 ) (string, ReferencedAsset, uint64, int64, bool) {
 	var asset ReferencedAsset
 
 	if assetId := bu.AmountAfter.AssetId; assetId != nil {
-		asset = ra[toBase58String(assetId)]
+		b58assetId := toBase58String(assetId)
+		asset, ok := referencedAssets[b58assetId]
+		if !ok {
+			asset = getAssetById(b58assetId)
+			referencedAssets[b58assetId] = asset
+		}
 	} else {
 		asset = WavesAsset
 	}
@@ -40,6 +46,7 @@ func decomposeBalanceUpdate(
 	after := bu.AmountAfter.Amount
 	delta := after - before
 	isInbound := delta > 0
+
 	return address, asset, uint64(after), delta, isInbound
 }
 
@@ -54,19 +61,20 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 	transactionIds := appendField.TransactionIds
 	transactionStateUpdates := appendField.TransactionStateUpdates
 	orderedReferencedAssets := update.ReferencedAssets
-	referencedAssets := make(map[string]ReferencedAsset)
 
 	for _, ra := range orderedReferencedAssets {
 		id := toBase58String(ra.Id)
-		referencedAssets[id] = ReferencedAsset{
-			id:       id,
-			decimals: uint8(ra.Decimals),
-			name:     ra.Name,
+		if _, ok := referencedAssets[id]; !ok {
+			referencedAssets[id] = ReferencedAsset{
+				id:       id,
+				decimals: uint8(ra.Decimals),
+				name:     ra.Name,
+			}
 		}
 	}
 
 	for _, bu := range stateUpdatesBalances {
-		address, asset, after, delta, isInbound := decomposeBalanceUpdate(referencedAssets, bu)
+		address, asset, after, delta, isInbound := decomposeBalanceUpdate(bu)
 		insertions = append(insertions, BalanceUpdate{
 			height:         height,
 			assetId:        asset.id,
@@ -103,7 +111,7 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 		}
 
 		for _, bu := range tsu.Balances {
-			address, asset, after, delta, isInbound := decomposeBalanceUpdate(referencedAssets, bu)
+			address, asset, after, delta, isInbound := decomposeBalanceUpdate(bu)
 
 			insertions = append(insertions, BalanceUpdate{
 				height:         height,
@@ -210,8 +218,8 @@ func getBlocks(client blockchainupdates.BlockchainUpdatesApiClient, ch chan *blo
 	close(ch)
 }
 
-func getCurrentHeight(client *http.Client, path string) int32 {
-	r, err := (client).Get(restApiHost + path)
+func getCurrentHeight() int32 {
+	r, err := httpClient.Get(restApiHost + "/blocks/height")
 	if err != nil {
 		panic(err)
 	}
@@ -230,13 +238,36 @@ func getCurrentHeight(client *http.Client, path string) int32 {
 	return target.Height - 1
 }
 
+func getAssetById(assetId string) ReferencedAsset {
+	r, err := httpClient.Get(restApiHost + "/assets/details/" + assetId + "?full=true")
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	var target AssetDetails
+
+	if err := json.NewDecoder(r.Body).Decode(&target); err != nil {
+		panic(err)
+	}
+
+	return ReferencedAsset{
+		id:       target.AssetId,
+		decimals: uint8(target.Decimals),
+		name:     target.Name,
+	}
+}
+
 func main() {
 	// Загружаем переменные окружения из файла .env
 	if err := godotenv.Load(); err != nil {
 		panic(err)
 	}
 	restApiHost = os.Getenv("REST_API_HOST")
-	httpClient := http.Client{}
 
 	// Устанавливаем соединение с gRPC-сервером
 	grpcConn, err := grpc.NewClient(
@@ -315,7 +346,7 @@ func main() {
 
 	log.Printf("Consume from: %d", counter)
 
-	toHeight := getCurrentHeight(&httpClient, "/blocks/height")
+	toHeight := getCurrentHeight()
 
 	estimatedBlocks := toHeight - counter
 	batchCount := int(estimatedBlocks / BlocksStep)
