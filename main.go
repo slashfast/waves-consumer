@@ -51,11 +51,12 @@ func decomposeBalanceUpdate(
 	return address, asset, uint64(afterAtomic), deltaAtomic, isInbound
 }
 
-func atomicToFloat(balanceAtomic uint64, deltaAtomic int64, decimals uint8) (float64, float64) {
-	decimalsMultiplier := math.Pow(10, -float64(decimals))
-	balance := float64(balanceAtomic) * decimalsMultiplier
-	delta := float64(deltaAtomic) * decimalsMultiplier
-	return balance, delta
+func atomicToDecimal(quantityAtomic uint64, deltaAtomic int64) (proto.Decimal128, proto.Decimal128) {
+	quantity := proto.Int128FromUInt64(quantityAtomic)
+	delta := proto.Int128FromInt(int(deltaAtomic))
+
+	return proto.Decimal128{Low: quantity.Low, High: quantity.High},
+		proto.Decimal128{Low: delta.Low, High: delta.High}
 }
 
 func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []BalanceUpdate {
@@ -82,8 +83,8 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 	}
 
 	for _, bu := range stateUpdatesBalances {
-		address, asset, balanceAtomic, deltaAtomic, isInbound := decomposeBalanceUpdate(bu)
-		balance, delta := atomicToFloat(balanceAtomic, deltaAtomic, asset.decimals)
+		address, asset, quantityAtomic, deltaAtomic, isInbound := decomposeBalanceUpdate(bu)
+		quantity, delta := atomicToDecimal(quantityAtomic, deltaAtomic)
 		insertions = append(insertions, BalanceUpdate{
 			height:         height,
 			assetId:        asset.id,
@@ -92,9 +93,9 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 			txType:         0,
 			txId:           "",
 			counterparty:   "",
-			balance:        balance,
+			quantity:       quantity,
 			delta:          delta,
-			balanceAtomic:  balanceAtomic,
+			quantityAtomic: quantityAtomic,
 			deltaAtomic:    deltaAtomic,
 			assetDecimals:  asset.decimals,
 			assetName:      asset.name,
@@ -129,8 +130,8 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 		}
 
 		for _, bu := range tsu.Balances {
-			address, asset, balanceAtomic, deltaAtomic, isInbound := decomposeBalanceUpdate(bu)
-			balance, delta := atomicToFloat(balanceAtomic, deltaAtomic, asset.decimals)
+			address, asset, quantityAtomic, deltaAtomic, isInbound := decomposeBalanceUpdate(bu)
+			quantity, delta := atomicToDecimal(quantityAtomic, deltaAtomic)
 
 			insertions = append(insertions, BalanceUpdate{
 				height:         height,
@@ -140,9 +141,9 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 				txType:         txType,
 				txId:           txId,
 				counterparty:   counterparty,
-				balance:        balance,
+				quantity:       quantity,
 				delta:          delta,
-				balanceAtomic:  balanceAtomic,
+				quantityAtomic: quantityAtomic,
 				deltaAtomic:    deltaAtomic,
 				assetDecimals:  asset.decimals,
 				assetName:      asset.name,
@@ -166,9 +167,9 @@ func getChInput(ch chan *blockchainupdates.GetBlockUpdateResponse) proto.Input {
 	txType := proto.ColUInt8{}
 	txId := proto.ColStr{}
 	counterparty := proto.ColStr{}
-	balance := proto.ColFloat64{}
-	delta := proto.ColFloat64{}
-	balanceAtomic := proto.ColUInt64{}
+	quantity := proto.ColDecimal128{}
+	delta := proto.ColDecimal128{}
+	quantityAtomic := proto.ColUInt64{}
 	deltaAtomic := proto.ColInt64{}
 	assetDecimals := proto.ColUInt8{}
 	assetName := proto.ColStr{}
@@ -186,9 +187,9 @@ func getChInput(ch chan *blockchainupdates.GetBlockUpdateResponse) proto.Input {
 			txType.Append(ins.txType)
 			txId.Append(ins.txId)
 			counterparty.Append(ins.counterparty)
-			balance.Append(ins.balance)
+			quantity.Append(ins.quantity)
 			delta.Append(ins.delta)
-			balanceAtomic.Append(ins.balanceAtomic)
+			quantityAtomic.Append(ins.quantityAtomic)
 			deltaAtomic.Append(ins.deltaAtomic)
 			assetDecimals.Append(ins.assetDecimals)
 			assetName.Append(ins.assetName)
@@ -207,9 +208,9 @@ func getChInput(ch chan *blockchainupdates.GetBlockUpdateResponse) proto.Input {
 		{Name: "tx_type", Data: &txType},
 		{Name: "tx_id", Data: &txId},
 		{Name: "counterparty", Data: &counterparty},
-		{Name: "balance", Data: &balance},
-		{Name: "delta", Data: &delta},
-		{Name: "balance_atomic", Data: &balanceAtomic},
+		{Name: "quantity", Data: proto.Alias(&quantity, "Decimal128(8)")},
+		{Name: "delta", Data: proto.Alias(&delta, "Decimal128(8)")},
+		{Name: "quantity_atomic", Data: &quantityAtomic},
 		{Name: "delta_atomic", Data: &deltaAtomic},
 		{Name: "asset_decimals", Data: &assetDecimals},
 		{Name: "asset_name", Data: &assetName},

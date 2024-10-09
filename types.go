@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"github.com/ClickHouse/ch-go/proto"
+	"time"
+)
 
 type BalanceUpdate struct {
 	height         uint32
@@ -10,9 +13,9 @@ type BalanceUpdate struct {
 	txType         uint8
 	txId           string
 	counterparty   string
-	balance        float64
-	delta          float64
-	balanceAtomic  uint64
+	quantity       proto.Decimal128
+	delta          proto.Decimal128
+	quantityAtomic uint64
 	deltaAtomic    int64
 	assetDecimals  uint8
 	assetName      string
