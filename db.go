@@ -28,25 +28,12 @@ func createTables(conn *ch.Client, ctx context.Context, dbName string) error {
 			block_timestamp DateTime64(3)
 		)
 		ENGINE = ReplacingMergeTree
-		PRIMARY KEY (asset_id, address)
 		ORDER BY (asset_id, address, height, tx_id)
-        SETTINGS non_replicated_deduplication_window = 1000;
+        SETTINGS non_replicated_deduplication_window = 1000
 		`,
 	}); err != nil {
 		return err
 	}
-
-	//if err := conn.Do(ctx, ch.Query{
-	//	Body: "CREATE TABLE IF NOT EXISTS " + dbName + `.blocks
-	//	(
-	//		height          UInt32,
-	//	)
-	//	ENGINE = ReplacingMergeTree
-	//	ORDER BY (height)
-	//	`,
-	//}); err != nil {
-	//	return err
-	//}
 
 	return nil
 }
