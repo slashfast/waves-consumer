@@ -17,6 +17,7 @@ func createTables(conn *ch.Client, ctx context.Context, dbName string) error {
 			tx_id           String,
 			balance         UInt64,
 			delta           Int64,
+    		counterparty    String,
 			asset_decimals  UInt8,
 			asset_name      String,
 			is_inbound      Bool,

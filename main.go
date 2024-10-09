@@ -84,6 +84,7 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 			txType:         0,
 			txId:           "",
 			balance:        after,
+			counterparty:   "",
 			delta:          delta,
 			assetDecimals:  asset.decimals,
 			assetName:      asset.name,
@@ -100,15 +101,21 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 		var timestamp time.Time
 		var txType uint8
 		var txVersion uint8
+		var counterparty string
 
 		if txData := block.Block.Transactions[i].GetWavesTransaction(); txData != nil {
 			timestamp = time.Unix(0, txData.Timestamp*int64(time.Millisecond)).UTC()
 			txVersion = uint8(txData.Version)
 			txType = TxTypes[reflect.TypeOf(txData.Data).Elem().Name()]
+			txMetadata := appendField.TransactionsMetadata[i]
+			counterparty = toBase58String(txMetadata.SenderAddress)
 		} else {
-			timestamp = time.Unix(0, appendField.TransactionsMetadata[i].GetEthereum().Timestamp*int64(time.Millisecond)).UTC()
+			txMetadata := appendField.TransactionsMetadata[i]
+			txData := txMetadata.GetEthereum()
+			timestamp = time.Unix(0, txData.Timestamp*int64(time.Millisecond)).UTC()
 			txVersion = 0
 			txType = TxTypes["Transaction_Ethereum"]
+			counterparty = toBase58String(txMetadata.SenderAddress)
 		}
 
 		for _, bu := range tsu.Balances {
@@ -122,6 +129,7 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 				txType:         txType,
 				txId:           txId,
 				balance:        after,
+				counterparty:   counterparty,
 				delta:          delta,
 				assetDecimals:  asset.decimals,
 				assetName:      asset.name,
@@ -146,6 +154,7 @@ func getChInput(ch chan *blockchainupdates.GetBlockUpdateResponse) proto.Input {
 	txId := proto.ColStr{}
 	balance := proto.ColUInt64{}
 	delta := proto.ColInt64{}
+	counterparty := proto.ColStr{}
 	assetDecimals := proto.ColUInt8{}
 	assetName := proto.ColStr{}
 	isInbound := proto.ColBool{}
@@ -161,6 +170,7 @@ func getChInput(ch chan *blockchainupdates.GetBlockUpdateResponse) proto.Input {
 			txVersion.Append(ins.txVersion)
 			txType.Append(ins.txType)
 			txId.Append(ins.txId)
+			counterparty.Append(ins.counterparty)
 			balance.Append(ins.balance)
 			delta.Append(ins.delta)
 			assetDecimals.Append(ins.assetDecimals)
@@ -179,6 +189,7 @@ func getChInput(ch chan *blockchainupdates.GetBlockUpdateResponse) proto.Input {
 		{Name: "tx_version", Data: &txVersion},
 		{Name: "tx_type", Data: &txType},
 		{Name: "tx_id", Data: &txId},
+		{Name: "counterparty", Data: &counterparty},
 		{Name: "balance", Data: &balance},
 		{Name: "delta", Data: &delta},
 		{Name: "asset_decimals", Data: &assetDecimals},

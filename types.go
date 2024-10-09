@@ -9,8 +9,11 @@ type BalanceUpdate struct {
 	txVersion      uint8
 	txType         uint8
 	txId           string
-	balance        uint64
-	delta          int64
+	counterparty   string
+	balance        float64
+	delta          float64
+	balanceAtomic  uint64
+	deltaAtomic    int64
 	assetDecimals  uint8
 	assetName      string
 	isInbound      bool
