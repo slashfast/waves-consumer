@@ -43,12 +43,19 @@ func decomposeBalanceUpdate(
 	}
 
 	address := toBase58String(bu.Address)
-	before := bu.AmountBefore
-	after := bu.AmountAfter.Amount
-	delta := after - before
-	isInbound := delta > 0
+	beforeAtomic := bu.AmountBefore
+	afterAtomic := bu.AmountAfter.Amount
+	deltaAtomic := afterAtomic - beforeAtomic
+	isInbound := deltaAtomic > 0
 
-	return address, asset, uint64(after), delta, isInbound
+	return address, asset, uint64(afterAtomic), deltaAtomic, isInbound
+}
+
+func atomicToFloat(balanceAtomic uint64, deltaAtomic int64, decimals uint8) (float64, float64) {
+	decimalsMultiplier := math.Pow(10, -float64(decimals))
+	balance := float64(balanceAtomic) * decimalsMultiplier
+	delta := float64(deltaAtomic) * decimalsMultiplier
+	return balance, delta
 }
 
 func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []BalanceUpdate {
@@ -75,7 +82,8 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 	}
 
 	for _, bu := range stateUpdatesBalances {
-		address, asset, after, delta, isInbound := decomposeBalanceUpdate(bu)
+		address, asset, balanceAtomic, deltaAtomic, isInbound := decomposeBalanceUpdate(bu)
+		balance, delta := atomicToFloat(balanceAtomic, deltaAtomic, asset.decimals)
 		insertions = append(insertions, BalanceUpdate{
 			height:         height,
 			assetId:        asset.id,
@@ -83,9 +91,11 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 			txVersion:      0,
 			txType:         0,
 			txId:           "",
-			balance:        after,
 			counterparty:   "",
+			balance:        balance,
 			delta:          delta,
+			balanceAtomic:  balanceAtomic,
+			deltaAtomic:    deltaAtomic,
 			assetDecimals:  asset.decimals,
 			assetName:      asset.name,
 			isInbound:      isInbound,
@@ -119,7 +129,8 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 		}
 
 		for _, bu := range tsu.Balances {
-			address, asset, after, delta, isInbound := decomposeBalanceUpdate(bu)
+			address, asset, balanceAtomic, deltaAtomic, isInbound := decomposeBalanceUpdate(bu)
+			balance, delta := atomicToFloat(balanceAtomic, deltaAtomic, asset.decimals)
 
 			insertions = append(insertions, BalanceUpdate{
 				height:         height,
@@ -128,9 +139,11 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 				txVersion:      txVersion,
 				txType:         txType,
 				txId:           txId,
-				balance:        after,
 				counterparty:   counterparty,
+				balance:        balance,
 				delta:          delta,
+				balanceAtomic:  balanceAtomic,
+				deltaAtomic:    deltaAtomic,
 				assetDecimals:  asset.decimals,
 				assetName:      asset.name,
 				isInbound:      isInbound,
@@ -152,9 +165,11 @@ func getChInput(ch chan *blockchainupdates.GetBlockUpdateResponse) proto.Input {
 	txVersion := proto.ColUInt8{}
 	txType := proto.ColUInt8{}
 	txId := proto.ColStr{}
-	balance := proto.ColUInt64{}
-	delta := proto.ColInt64{}
 	counterparty := proto.ColStr{}
+	balance := proto.ColFloat64{}
+	delta := proto.ColFloat64{}
+	balanceAtomic := proto.ColUInt64{}
+	deltaAtomic := proto.ColInt64{}
 	assetDecimals := proto.ColUInt8{}
 	assetName := proto.ColStr{}
 	isInbound := proto.ColBool{}
@@ -173,6 +188,8 @@ func getChInput(ch chan *blockchainupdates.GetBlockUpdateResponse) proto.Input {
 			counterparty.Append(ins.counterparty)
 			balance.Append(ins.balance)
 			delta.Append(ins.delta)
+			balanceAtomic.Append(ins.balanceAtomic)
+			deltaAtomic.Append(ins.deltaAtomic)
 			assetDecimals.Append(ins.assetDecimals)
 			assetName.Append(ins.assetName)
 			isInbound.Append(ins.isInbound)
@@ -192,6 +209,8 @@ func getChInput(ch chan *blockchainupdates.GetBlockUpdateResponse) proto.Input {
 		{Name: "counterparty", Data: &counterparty},
 		{Name: "balance", Data: &balance},
 		{Name: "delta", Data: &delta},
+		{Name: "balance_atomic", Data: &balanceAtomic},
+		{Name: "delta_atomic", Data: &deltaAtomic},
 		{Name: "asset_decimals", Data: &assetDecimals},
 		{Name: "asset_name", Data: &assetName},
 		{Name: "is_inbound", Data: &isInbound},
