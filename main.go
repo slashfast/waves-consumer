@@ -297,8 +297,9 @@ func getAssetById(assetId string) ReferencedAsset {
 func main() {
 	// Загружаем переменные окружения из файла .env
 	if err := godotenv.Load(); err != nil {
-		panic(err)
+		log.Println("The dotenv file is missing")
 	}
+
 	restApiHost = os.Getenv("REST_API_HOST")
 
 	// Устанавливаем соединение с gRPC-сервером
