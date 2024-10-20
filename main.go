@@ -43,19 +43,19 @@ func decomposeBalanceUpdate(
 	}
 
 	address := toBase58String(bu.Address)
-	beforeAtomic := bu.AmountBefore
-	afterAtomic := bu.AmountAfter.Amount
-	deltaAtomic := afterAtomic - beforeAtomic
-	isInbound := deltaAtomic > 0
+	beforeSubunits := bu.AmountBefore
+	afterSubunits := bu.AmountAfter.Amount
+	deltaSubunits := afterSubunits - beforeSubunits
+	isInbound := deltaSubunits > 0
 
-	return address, asset, uint64(afterAtomic), deltaAtomic, isInbound
+	return address, asset, uint64(afterSubunits), deltaSubunits, isInbound
 }
 
-func atomicToDecimal(quantityAtomic uint64, deltaAtomic int64) (proto.Decimal128, proto.Decimal128) {
-	quantity := proto.Int128FromUInt64(quantityAtomic)
-	delta := proto.Int128FromInt(int(deltaAtomic))
+func subunitsToDecimal(subunits uint64, deltaSubunits int64) (proto.Decimal128, proto.Decimal128) {
+	amount := proto.Int128FromUInt64(subunits)
+	delta := proto.Int128FromInt(int(deltaSubunits))
 
-	return proto.Decimal128{Low: quantity.Low, High: quantity.High},
+	return proto.Decimal128{Low: amount.Low, High: amount.High},
 		proto.Decimal128{Low: delta.Low, High: delta.High}
 }
 
@@ -83,8 +83,8 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 	}
 
 	for _, bu := range stateUpdatesBalances {
-		address, asset, quantityAtomic, deltaAtomic, isInbound := decomposeBalanceUpdate(bu)
-		quantity, delta := atomicToDecimal(quantityAtomic, deltaAtomic)
+		address, asset, subunits, deltaSubunits, isInbound := decomposeBalanceUpdate(bu)
+		amount, delta := subunitsToDecimal(subunits, deltaSubunits)
 		insertions = append(insertions, BalanceUpdate{
 			height:         height,
 			assetId:        asset.id,
@@ -93,10 +93,10 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 			txType:         0,
 			txId:           "",
 			counterparty:   "",
-			quantity:       quantity,
+			amount:         amount,
 			delta:          delta,
-			quantityAtomic: quantityAtomic,
-			deltaAtomic:    deltaAtomic,
+			subunits:       subunits,
+			deltaSubunits:  deltaSubunits,
 			assetDecimals:  asset.decimals,
 			assetName:      asset.name,
 			isInbound:      isInbound,
@@ -130,8 +130,8 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 		}
 
 		for _, bu := range tsu.Balances {
-			address, asset, quantityAtomic, deltaAtomic, isInbound := decomposeBalanceUpdate(bu)
-			quantity, delta := atomicToDecimal(quantityAtomic, deltaAtomic)
+			address, asset, subunits, deltaSubunits, isInbound := decomposeBalanceUpdate(bu)
+			amount, delta := subunitsToDecimal(subunits, deltaSubunits)
 
 			insertions = append(insertions, BalanceUpdate{
 				height:         height,
@@ -141,10 +141,10 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 				txType:         txType,
 				txId:           txId,
 				counterparty:   counterparty,
-				quantity:       quantity,
+				amount:         amount,
 				delta:          delta,
-				quantityAtomic: quantityAtomic,
-				deltaAtomic:    deltaAtomic,
+				subunits:       subunits,
+				deltaSubunits:  deltaSubunits,
 				assetDecimals:  asset.decimals,
 				assetName:      asset.name,
 				isInbound:      isInbound,
@@ -167,10 +167,10 @@ func getChInput(ch chan *blockchainupdates.GetBlockUpdateResponse) proto.Input {
 	txType := proto.ColUInt8{}
 	txId := proto.ColStr{}
 	counterparty := proto.ColStr{}
-	quantity := proto.ColDecimal128{}
+	amount := proto.ColDecimal128{}
 	delta := proto.ColDecimal128{}
-	quantityAtomic := proto.ColUInt64{}
-	deltaAtomic := proto.ColInt64{}
+	subunits := proto.ColUInt64{}
+	deltaSubunits := proto.ColInt64{}
 	assetDecimals := proto.ColUInt8{}
 	assetName := proto.ColStr{}
 	isInbound := proto.ColBool{}
@@ -187,10 +187,10 @@ func getChInput(ch chan *blockchainupdates.GetBlockUpdateResponse) proto.Input {
 			txType.Append(ins.txType)
 			txId.Append(ins.txId)
 			counterparty.Append(ins.counterparty)
-			quantity.Append(ins.quantity)
+			amount.Append(ins.amount)
 			delta.Append(ins.delta)
-			quantityAtomic.Append(ins.quantityAtomic)
-			deltaAtomic.Append(ins.deltaAtomic)
+			subunits.Append(ins.subunits)
+			deltaSubunits.Append(ins.deltaSubunits)
 			assetDecimals.Append(ins.assetDecimals)
 			assetName.Append(ins.assetName)
 			isInbound.Append(ins.isInbound)
@@ -208,10 +208,10 @@ func getChInput(ch chan *blockchainupdates.GetBlockUpdateResponse) proto.Input {
 		{Name: "tx_type", Data: &txType},
 		{Name: "tx_id", Data: &txId},
 		{Name: "counterparty", Data: &counterparty},
-		{Name: "quantity", Data: proto.Alias(&quantity, "Decimal128(8)")},
+		{Name: "amount", Data: proto.Alias(&amount, "Decimal128(8)")},
 		{Name: "delta", Data: proto.Alias(&delta, "Decimal128(8)")},
-		{Name: "quantity_atomic", Data: &quantityAtomic},
-		{Name: "delta_atomic", Data: &deltaAtomic},
+		{Name: "subunits", Data: &subunits},
+		{Name: "delta_subunits", Data: &deltaSubunits},
 		{Name: "asset_decimals", Data: &assetDecimals},
 		{Name: "asset_name", Data: &assetName},
 		{Name: "is_inbound", Data: &isInbound},

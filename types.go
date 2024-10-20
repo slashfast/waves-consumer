@@ -13,10 +13,10 @@ type BalanceUpdate struct {
 	txType         uint8
 	txId           string
 	counterparty   string
-	quantity       proto.Decimal128
+	amount         proto.Decimal128
 	delta          proto.Decimal128
-	quantityAtomic uint64
-	deltaAtomic    int64
+	subunits       uint64
+	deltaSubunits  int64
 	assetDecimals  uint8
 	assetName      string
 	isInbound      bool
@@ -39,7 +39,7 @@ type AssetDetails struct {
 	AssetId              string `json:"assetId"`
 	Name                 string `json:"name"`
 	Description          string `json:"description"`
-	Quantity             int64  `json:"quantity"`
+	Quantity             int64  `json:"amount"`
 	Decimals             int    `json:"decimals"`
 	IssueHeight          int    `json:"issueHeight"`
 	IssueTimestamp       int64  `json:"issueTimestamp"`
