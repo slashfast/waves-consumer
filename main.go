@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"math"
+	"math/bits"
 	"net/http"
 	"os"
 	"reflect"
@@ -24,6 +25,13 @@ import (
 var restApiHost string
 var referencedAssets = make(map[string]ReferencedAsset)
 var httpClient = http.Client{}
+
+func MulInt64(x int64, y uint64) (uint64, uint64) {
+	if x < 0 {
+		return math.MaxUint64, uint64(x * int64(y))
+	}
+	return bits.Mul64(uint64(x), y)
+}
 
 func decomposeBalanceUpdate(
 	bu *events.StateUpdate_BalanceUpdate,
@@ -51,12 +59,22 @@ func decomposeBalanceUpdate(
 	return address, asset, uint64(afterSubunits), deltaSubunits, isInbound
 }
 
-func subunitsToDecimal(subunits uint64, deltaSubunits int64) (proto.Decimal128, proto.Decimal128) {
-	amount := proto.Int128FromUInt64(subunits)
-	delta := proto.Int128FromInt(int(deltaSubunits))
+func subunitsToDecimal(subunits uint64, deltaSubunits int64, decimals uint8) (proto.Decimal128, proto.Decimal128) {
+	power := 8 - decimals
 
-	return proto.Decimal128{Low: amount.Low, High: amount.High},
-		proto.Decimal128{Low: delta.Low, High: delta.High}
+	var i uint8
+	var multiplier uint64 = 1
+
+	for i = 0; i < power; i++ {
+		multiplier *= 10
+	}
+
+	amountHigh, amountLow := bits.Mul64(subunits, multiplier)
+	amount := proto.Decimal128{Low: amountLow, High: amountHigh}
+	deltaHigh, deltaLow := MulInt64(deltaSubunits, multiplier)
+	delta := proto.Decimal128{Low: deltaLow, High: deltaHigh}
+
+	return amount, delta
 }
 
 func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []BalanceUpdate {
@@ -84,7 +102,7 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 
 	for _, bu := range stateUpdatesBalances {
 		address, asset, subunits, deltaSubunits, isInbound := decomposeBalanceUpdate(bu)
-		amount, delta := subunitsToDecimal(subunits, deltaSubunits)
+		amount, delta := subunitsToDecimal(subunits, deltaSubunits, asset.decimals)
 		insertions = append(insertions, BalanceUpdate{
 			height:         height,
 			assetId:        asset.id,
@@ -131,7 +149,7 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 
 		for _, bu := range tsu.Balances {
 			address, asset, subunits, deltaSubunits, isInbound := decomposeBalanceUpdate(bu)
-			amount, delta := subunitsToDecimal(subunits, deltaSubunits)
+			amount, delta := subunitsToDecimal(subunits, deltaSubunits, asset.decimals)
 
 			insertions = append(insertions, BalanceUpdate{
 				height:         height,
