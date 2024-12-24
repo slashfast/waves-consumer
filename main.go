@@ -77,7 +77,7 @@ func subunitsToDecimal(subunits uint64, deltaSubunits int64, decimals uint8) (pr
 	return amount, delta
 }
 
-func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []BalanceUpdate {
+func getUpdate(updateResponse *blockchainupdates.GetBlockUpdateResponse) []BalanceUpdate {
 	var insertions []BalanceUpdate
 	update := updateResponse.GetUpdate()
 	appendField := update.GetAppend()
@@ -102,7 +102,6 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 
 	for _, bu := range stateUpdatesBalances {
 		address, asset, subunits, deltaSubunits, isInbound := decomposeBalanceUpdate(bu)
-		amount, delta := subunitsToDecimal(subunits, deltaSubunits, asset.decimals)
 		insertions = append(insertions, BalanceUpdate{
 			height:         height,
 			assetId:        asset.id,
@@ -111,8 +110,6 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 			txType:         0,
 			txId:           "",
 			counterparty:   "",
-			amount:         amount,
-			delta:          delta,
 			subunits:       subunits,
 			deltaSubunits:  deltaSubunits,
 			assetDecimals:  asset.decimals,
@@ -149,7 +146,6 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 
 		for _, bu := range tsu.Balances {
 			address, asset, subunits, deltaSubunits, isInbound := decomposeBalanceUpdate(bu)
-			amount, delta := subunitsToDecimal(subunits, deltaSubunits, asset.decimals)
 
 			insertions = append(insertions, BalanceUpdate{
 				height:         height,
@@ -159,8 +155,6 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 				txType:         txType,
 				txId:           txId,
 				counterparty:   counterparty,
-				amount:         amount,
-				delta:          delta,
 				subunits:       subunits,
 				deltaSubunits:  deltaSubunits,
 				assetDecimals:  asset.decimals,
@@ -177,7 +171,7 @@ func getInsertion(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Ba
 
 }
 
-func getChInput(ch chan *blockchainupdates.GetBlockUpdateResponse) proto.Input {
+func getChInput(updates []BalanceUpdate) proto.Input {
 	height := proto.ColUInt32{}
 	assetId := proto.ColStr{}
 	address := proto.ColFixedStr{Size: 35}
@@ -196,26 +190,25 @@ func getChInput(ch chan *blockchainupdates.GetBlockUpdateResponse) proto.Input {
 	txTimestamp := proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true}
 	blockTimestamp := proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true}
 
-	for u := range ch {
-		for _, ins := range getInsertion(u) {
-			height.Append(ins.height)
-			assetId.Append(ins.assetId)
-			address.Append([]byte(ins.address))
-			txVersion.Append(ins.txVersion)
-			txType.Append(ins.txType)
-			txId.Append(ins.txId)
-			counterparty.Append(ins.counterparty)
-			amount.Append(ins.amount)
-			delta.Append(ins.delta)
-			subunits.Append(ins.subunits)
-			deltaSubunits.Append(ins.deltaSubunits)
-			assetDecimals.Append(ins.assetDecimals)
-			assetName.Append(ins.assetName)
-			isInbound.Append(ins.isInbound)
-			isStateUpdate.Append(ins.isStateUpdate)
-			txTimestamp.Append(ins.txTimestamp)
-			blockTimestamp.Append(ins.blockTimestamp)
-		}
+	for _, ins := range updates {
+		_amount, _delta := subunitsToDecimal(ins.subunits, ins.deltaSubunits, ins.assetDecimals)
+		height.Append(ins.height)
+		assetId.Append(ins.assetId)
+		address.Append([]byte(ins.address))
+		txVersion.Append(ins.txVersion)
+		txType.Append(ins.txType)
+		txId.Append(ins.txId)
+		counterparty.Append(ins.counterparty)
+		amount.Append(_amount)
+		delta.Append(_delta)
+		subunits.Append(ins.subunits)
+		deltaSubunits.Append(ins.deltaSubunits)
+		assetDecimals.Append(ins.assetDecimals)
+		assetName.Append(ins.assetName)
+		isInbound.Append(ins.isInbound)
+		isStateUpdate.Append(ins.isStateUpdate)
+		txTimestamp.Append(ins.txTimestamp)
+		blockTimestamp.Append(ins.blockTimestamp)
 	}
 
 	return proto.Input{
@@ -310,6 +303,14 @@ func getAssetById(assetId string) ReferencedAsset {
 		decimals: uint8(target.Decimals),
 		name:     target.Name,
 	}
+}
+
+func getUpdates(ch chan *blockchainupdates.GetBlockUpdateResponse) []BalanceUpdate {
+	var updates []BalanceUpdate
+	for u := range ch {
+		updates = append(updates, getUpdate(u)...)
+	}
+	return updates
 }
 
 func main() {
@@ -422,7 +423,8 @@ func main() {
 		results := make(chan *blockchainupdates.GetBlockUpdateResponse, blocksStep)
 		getBlocks(client, results, currentHeight+1, blocksStep)
 
-		insertions := getChInput(results)
+		updates := getUpdates(results)
+		insertions := getChInput(updates)
 		if err := dbConn.Do(context.Background(), ch.Query{
 			Body:  "INSERT INTO balances_updates VALUES",
 			Input: insertions,
