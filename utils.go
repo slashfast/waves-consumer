@@ -19,7 +19,7 @@ func toBase58String(addr []byte) string {
 //	blakeHash, err := blake2b.New256(nil)
 //
 //	if err != nil {
-//		panic(err)
+//		log.Fatal(err)
 //	}
 //
 //	blakeHash.Write(data)

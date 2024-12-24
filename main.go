@@ -271,18 +271,18 @@ func getBlocks(client blockchainupdates.BlockchainUpdatesApiClient, ch chan *blo
 func getCurrentHeight() int32 {
 	r, err := httpClient.Get(restApiHost + "/blocks/height")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer func() {
 		if err := r.Body.Close(); err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}()
 
 	var target BlocksHeightResponse
 
 	if err := json.NewDecoder(r.Body).Decode(&target); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	return target.Height - 1
@@ -291,18 +291,18 @@ func getCurrentHeight() int32 {
 func getAssetById(assetId string) ReferencedAsset {
 	r, err := httpClient.Get(restApiHost + "/assets/details/" + assetId + "?full=true")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer func() {
 		if err := r.Body.Close(); err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}()
 
 	var target AssetDetails
 
 	if err := json.NewDecoder(r.Body).Decode(&target); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	return ReferencedAsset{
@@ -332,13 +332,13 @@ func main() {
 		}),
 	)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	// Закрываем соединение после завершения работы
 	defer func() {
 		if err := grpcConn.Close(); err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}()
 
@@ -354,11 +354,11 @@ func main() {
 		},
 	)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	if err := createTables(dbConn, dbCtx, dbName); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	client := blockchainupdates.NewBlockchainUpdatesApiClient(grpcConn)
@@ -368,14 +368,14 @@ func main() {
 		context.Background(),
 		&blockchainupdates.GetBlockUpdateRequest{Height: 1},
 	); err != nil {
-		panic(err)
+		log.Fatal(err)
 	} else {
 		log.Println("Probe OK")
 	}
 
 	defer func() {
 		if err := dbConn.Close(); err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}()
 
@@ -385,7 +385,7 @@ func main() {
 		Body:   "SELECT max(height) FROM balances_updates",
 		Result: proto.ResultColumn{Data: &maxHeightResult},
 	}); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	currentHeight := int32(maxHeightResult[0]) // Начальная высота из базы данных
 	log.Printf("Starting from height: %d", currentHeight)
@@ -431,7 +431,7 @@ func main() {
 				{Key: "wait_for_async_insert", Value: "0"},
 			},
 		}); err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 
 		// Обновляем текущую высоту
