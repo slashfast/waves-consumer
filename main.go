@@ -1,132 +1,26 @@
 package main
 
 import (
-	"context"
-	"github.com/slashfast/wavesconsumer/v2/connectors/clickhouse"
+	"github.com/rs/zerolog"
 	"github.com/slashfast/wavesconsumer/v2/waves"
-	"log"
-	"math"
-	"os"
-	"sync"
-	"time"
-
-	"github.com/ClickHouse/ch-go"
-	"github.com/ClickHouse/ch-go/proto"
-	"github.com/joho/godotenv"
+	"github.com/slashfast/wavesconsumer/v2/waves/connectors"
 	blockchainupdates "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/events/grpc"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/keepalive"
+	"go.uber.org/fx"
+	"os"
+	"strconv"
+	"time"
 )
 
-// []*blockchain_updates.GetBlockUpdateResponse
-func getBlocks(client blockchainupdates.BlockchainUpdatesApiClient, ch chan *blockchainupdates.GetBlockUpdateResponse, from int32, len int32) {
-	var wg sync.WaitGroup
-	toHeight := from + len - 1
-	for height := from; height <= toHeight; height++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for {
-				resp, err := client.GetBlockUpdate(
-					context.Background(),
-					&blockchainupdates.GetBlockUpdateRequest{Height: height},
-				)
-				if err == nil {
-					// log.Printf("Height:\t%d", resp.Update.Height)
-					ch <- resp
-					return
-				}
-				log.Panicln(err)
-				//log.Printf("Error: %v", err)
-				//time.Sleep(100 * time.Millisecond)
-			}
-		}()
-	}
+const BlocksStep int32 = 1000
 
-	wg.Wait()
-	close(ch)
-}
-
-func main() {
-	// Загружаем переменные окружения из файла .env
-	if err := godotenv.Load(); err != nil {
-		log.Println("The dotenv file is missing")
-	}
-
-	waves.RestApiHost = os.Getenv("REST_API_HOST")
-
-	// Устанавливаем соединение с gRPC-сервером
-	grpcConn, err := grpc.NewClient(
-		os.Getenv("GRPC_HOSTNAME")+":"+os.Getenv("GRPC_PORT"),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(math.MaxInt32*256)),
-		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                1 * time.Minute,
-			Timeout:             30 * time.Second,
-			PermitWithoutStream: true,
-		}),
-	)
+func Serve(l *zerolog.Logger, updatesClient *waves.UpdatesClient, conn connectors.Connector) {
+	currentHeight, err := conn.GetHeight()
 	if err != nil {
-		log.Fatal(err)
+		l.Fatal().Err(err).Msg("failed to get current height")
 	}
+	l.Info().Str("from_height", strconv.Itoa(int(currentHeight))).Msg("Start serving...")
 
-	// Закрываем соединение после завершения работы
-	defer func() {
-		if err := grpcConn.Close(); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	dbName := os.Getenv("CH_DATABASE")
-	dbCtx := context.Background()
-	dbConn, err := ch.Dial(
-		dbCtx,
-		ch.Options{
-			Address:  os.Getenv("CH_HOSTNAME") + ":" + os.Getenv("CH_PORT"),
-			Database: dbName,
-			User:     os.Getenv("CH_USER"),
-			Password: os.Getenv("CH_PASSWORD"),
-		},
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if err := createTables(dbConn, dbCtx, dbName); err != nil {
-		log.Fatal(err)
-	}
-
-	client := blockchainupdates.NewBlockchainUpdatesApiClient(grpcConn)
-
-	// Проверка соединения
-	if _, err := client.GetBlockUpdate(
-		context.Background(),
-		&blockchainupdates.GetBlockUpdateRequest{Height: 1},
-	); err != nil {
-		log.Fatal(err)
-	} else {
-		log.Println("Probe OK")
-	}
-
-	defer func() {
-		if err := dbConn.Close(); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	// Получаем начальную максимальную высоту из базы данных
-	var maxHeightResult proto.ColUInt32
-	if err := dbConn.Do(dbCtx, ch.Query{
-		Body:   "SELECT max(height) FROM balances_updates",
-		Result: proto.ResultColumn{Data: &maxHeightResult},
-	}); err != nil {
-		log.Fatal(err)
-	}
-	currentHeight := int32(maxHeightResult[0]) // Начальная высота из базы данных
-	log.Printf("Starting from height: %d", currentHeight)
-
-	newBlockchainHeight := waves.GetCurrentHeight() // Запрос текущей высоты блокчейна
+	newBlockchainHeight := updatesClient.GetCurrentHeight()
 
 	var heightDiff int32
 	blocksStep := BlocksStep
@@ -137,37 +31,71 @@ func main() {
 		realTimeMode := !(heightDiff >= BlocksStep)
 
 		if realTimeMode {
-			newBlockchainHeight = waves.GetCurrentHeight() // Запрос текущей высоты блокчейна
-			log.Printf("DB Height: %d, Blockchain Height: %d", currentHeight, newBlockchainHeight)
+			newBlockchainHeight = updatesClient.GetCurrentHeight() // Запрос текущей высоты блокчейна
+			l.Info().
+				Str("db", strconv.Itoa(int(currentHeight))).
+				Str("blockchain", strconv.Itoa(int(newBlockchainHeight))).
+				Msg("Height")
 			heightDiff = newBlockchainHeight - currentHeight
 			if heightDiff == 0 {
-				log.Println("No new blocks. Waiting for 1 minute...")
+				l.Info().Msg("No new blocks. Waiting for 1 minute...")
 				time.Sleep(1 * time.Minute)
 				continue
 			} else if heightDiff < 0 {
-				log.Panicln("Height difference is negative! Possible data inconsistency.")
+				l.Fatal().Msg("Height difference is negative! Possible data inconsistency.")
 			}
 			blocksStep = heightDiff
 		}
 
 		// Печатаем информацию только если разница отличается от предыдущей
 		if prevBlockStep != blocksStep {
-			log.Printf("Processing blocks from height %d to %d with step %d", currentHeight, newBlockchainHeight, blocksStep)
+			l.Info().
+				Str("from", strconv.Itoa(int(currentHeight))).
+				Str("to", strconv.Itoa(int(newBlockchainHeight))).
+				Str("step", strconv.Itoa(int(blocksStep))).
+				Msg("Sync blocks")
 		}
 
 		results := make(chan *blockchainupdates.GetBlockUpdateResponse, blocksStep)
-		getBlocks(client, results, currentHeight+1, blocksStep)
-
-		updates := waves.GetUpdates(results)
-		insertions := clickhouse.GetInput(updates)
-		if err := clickhouse.InsertToDB(dbConn, insertions); err != nil {
-			log.Fatal(err)
+		updatesClient.GetBlocks(results, currentHeight+1, blocksStep)
+		updates := updatesClient.GetUpdates(results)
+		if err := conn.Insert(updates); err != nil {
+			l.Fatal().Err(err).Msg("")
 		}
 
 		// Обновляем текущую высоту
 		currentHeight += blocksStep
-		log.Printf("Updated current height to: %d", currentHeight)
+		l.Info().Str("to", strconv.Itoa(int(currentHeight))).Msg("Updated")
 
 		prevBlockStep = blocksStep
 	}
+}
+
+func NewLogger(_ fx.Lifecycle) (*zerolog.Logger, error) {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	logger := zerolog.
+		New(os.Stderr).
+		With().
+		Timestamp().
+		Logger()
+	return &logger, nil
+}
+
+func main() {
+	fx.New(
+		fx.Provide(
+			fx.Annotate(
+				connectors.NewConnector,
+				fx.As(new(connectors.Connector)),
+			),
+			waves.NewUpdatesClient,
+			fx.Annotate(
+				LoadConfigFromEnv,
+				fx.As(new(waves.NodeClientConfig)),
+				fx.As(new(connectors.ClickHouseConfig)),
+			),
+			NewLogger,
+		),
+		fx.Invoke(Serve),
+	).Run()
 }

@@ -1,19 +1,27 @@
 package waves
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/mr-tron/base58"
+	"github.com/rs/zerolog"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/events"
 	blockchainupdates "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/events/grpc"
-	"log"
+	"go.uber.org/fx"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
+	"math"
 	"net/http"
 	"reflect"
+	"sync"
 	"time"
 )
 
-var referencedAssets = make(map[string]ReferencedAsset)
-var RestApiHost string
-var httpClient = http.Client{}
+type NodeClientConfig interface {
+	GetNodeURL() string
+	GetGRPCAddress() string
+}
 
 type BalanceUpdate struct {
 	Height         uint32
@@ -69,18 +77,68 @@ func toBase58String(addr []byte) string {
 	return base58.Encode(addr)
 }
 
-func decomposeBalanceUpdate(
-	bu *events.StateUpdate_BalanceUpdate,
-) (string, ReferencedAsset, uint64, int64, bool) {
+type UpdatesClient struct {
+	conn             blockchainupdates.BlockchainUpdatesApiClient
+	rest             *http.Client
+	nodeURL          string
+	referencedAssets map[string]ReferencedAsset
+	log              *zerolog.Logger
+}
+
+func (uc *UpdatesClient) GetCurrentHeight() int32 {
+	r, err := uc.rest.Get(uc.nodeURL + "/blocks/height")
+	if err != nil {
+		uc.log.Fatal().Err(err).Msg("")
+	}
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			uc.log.Fatal().Err(err).Msg("")
+		}
+	}()
+
+	var target BlocksHeightResponse
+
+	if err := json.NewDecoder(r.Body).Decode(&target); err != nil {
+		uc.log.Fatal().Err(err).Msg("")
+	}
+
+	return target.Height - 1
+}
+
+func (uc *UpdatesClient) getAssetById(assetId string) ReferencedAsset {
+	r, err := uc.rest.Get(uc.nodeURL + "/assets/details/" + assetId + "?full=true")
+	if err != nil {
+		uc.log.Fatal().Err(err).Msg("")
+	}
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			uc.log.Fatal().Err(err).Msg("")
+		}
+	}()
+
+	var target AssetDetails
+
+	if err := json.NewDecoder(r.Body).Decode(&target); err != nil {
+		uc.log.Fatal().Err(err).Msg("")
+	}
+
+	return ReferencedAsset{
+		Id:       target.AssetId,
+		Decimals: uint8(target.Decimals),
+		Name:     target.Name,
+	}
+}
+
+func (uc *UpdatesClient) decomposeBalanceUpdate(bu *events.StateUpdate_BalanceUpdate) (string, ReferencedAsset, uint64, int64, bool) {
 	var asset ReferencedAsset
 
 	if assetId := bu.AmountAfter.AssetId; assetId != nil {
 		b58assetId := toBase58String(assetId)
 		var ok bool
-		asset, ok = referencedAssets[b58assetId]
+		asset, ok = uc.referencedAssets[b58assetId]
 		if !ok {
-			asset = getAssetById(b58assetId)
-			referencedAssets[b58assetId] = asset
+			asset = uc.getAssetById(b58assetId)
+			uc.referencedAssets[b58assetId] = asset
 		}
 	} else {
 		asset = Asset
@@ -95,7 +153,7 @@ func decomposeBalanceUpdate(
 	return address, asset, uint64(afterSubunits), deltaSubunits, isInbound
 }
 
-func getUpdate(updateResponse *blockchainupdates.GetBlockUpdateResponse) []BalanceUpdate {
+func (uc *UpdatesClient) getUpdate(updateResponse *blockchainupdates.GetBlockUpdateResponse) []BalanceUpdate {
 	var insertions []BalanceUpdate
 	update := updateResponse.GetUpdate()
 	appendField := update.GetAppend()
@@ -109,8 +167,8 @@ func getUpdate(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Balan
 
 	for _, ra := range orderedReferencedAssets {
 		id := toBase58String(ra.Id)
-		if _, ok := referencedAssets[id]; !ok {
-			referencedAssets[id] = ReferencedAsset{
+		if _, ok := uc.referencedAssets[id]; !ok {
+			uc.referencedAssets[id] = ReferencedAsset{
 				Id:       id,
 				Decimals: uint8(ra.Decimals),
 				Name:     ra.Name,
@@ -119,7 +177,7 @@ func getUpdate(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Balan
 	}
 
 	for _, bu := range stateUpdatesBalances {
-		address, asset, subunits, deltaSubunits, isInbound := decomposeBalanceUpdate(bu)
+		address, asset, subunits, deltaSubunits, isInbound := uc.decomposeBalanceUpdate(bu)
 		insertions = append(insertions, BalanceUpdate{
 			Height:         height,
 			AssetId:        asset.Id,
@@ -163,7 +221,7 @@ func getUpdate(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Balan
 		}
 
 		for _, bu := range tsu.Balances {
-			address, asset, subunits, deltaSubunits, isInbound := decomposeBalanceUpdate(bu)
+			address, asset, subunits, deltaSubunits, isInbound := uc.decomposeBalanceUpdate(bu)
 
 			insertions = append(insertions, BalanceUpdate{
 				Height:         height,
@@ -188,54 +246,77 @@ func getUpdate(updateResponse *blockchainupdates.GetBlockUpdateResponse) []Balan
 	return insertions
 }
 
-func GetUpdates(ch chan *blockchainupdates.GetBlockUpdateResponse) []BalanceUpdate {
+func (uc *UpdatesClient) GetUpdates(ch chan *blockchainupdates.GetBlockUpdateResponse) []BalanceUpdate {
 	var updates []BalanceUpdate
 	for u := range ch {
-		updates = append(updates, getUpdate(u)...)
+		updates = append(updates, uc.getUpdate(u)...)
 	}
 	return updates
 }
 
-func getAssetById(assetId string) ReferencedAsset {
-	r, err := httpClient.Get(RestApiHost + "/assets/details/" + assetId + "?full=true")
-	if err != nil {
-		log.Fatal(err)
+func (uc *UpdatesClient) GetBlocks(ch chan *blockchainupdates.GetBlockUpdateResponse, from int32, len int32) {
+	var wg sync.WaitGroup
+	toHeight := from + len - 1
+	for height := from; height <= toHeight; height++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				resp, err := uc.conn.GetBlockUpdate(
+					context.Background(),
+					&blockchainupdates.GetBlockUpdateRequest{Height: height},
+				)
+				if err == nil {
+					ch <- resp
+					return
+				}
+			}
+		}()
 	}
-	defer func() {
-		if err := r.Body.Close(); err != nil {
-			log.Fatal(err)
-		}
-	}()
 
-	var target AssetDetails
-
-	if err := json.NewDecoder(r.Body).Decode(&target); err != nil {
-		log.Fatal(err)
-	}
-
-	return ReferencedAsset{
-		Id:       target.AssetId,
-		Decimals: uint8(target.Decimals),
-		Name:     target.Name,
-	}
+	wg.Wait()
+	close(ch)
 }
 
-func GetCurrentHeight() int32 {
-	r, err := httpClient.Get(RestApiHost + "/blocks/height")
+func NewUpdatesClient(lc fx.Lifecycle, l *zerolog.Logger, config NodeClientConfig) (*UpdatesClient, error) {
+	conn, err := grpc.NewClient(
+		config.GetGRPCAddress(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(math.MaxInt32*256)),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time:                1 * time.Minute,
+			Timeout:             30 * time.Second,
+			PermitWithoutStream: true,
+		}),
+	)
 	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() {
-		if err := r.Body.Close(); err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	var target BlocksHeightResponse
-
-	if err := json.NewDecoder(r.Body).Decode(&target); err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	return target.Height - 1
+	client := blockchainupdates.NewBlockchainUpdatesApiClient(conn)
+
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			if _, err := client.GetBlockUpdate(
+				context.Background(),
+				&blockchainupdates.GetBlockUpdateRequest{Height: 1},
+			); err != nil {
+				return err
+			}
+			l.Info().Msg("Node GRPC probe is OK")
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			l.Info().Msg("Closing GRPC client")
+			return conn.Close()
+		},
+	})
+
+	return &UpdatesClient{
+		conn:             client,
+		rest:             &http.Client{},
+		nodeURL:          config.GetNodeURL(),
+		referencedAssets: make(map[string]ReferencedAsset),
+		log:              l,
+	}, nil
 }
