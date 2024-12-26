@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/rs/zerolog"
 	"github.com/slashfast/wavesconsumer/v2/waves"
 	"github.com/slashfast/wavesconsumer/v2/waves/connectors"
@@ -8,48 +9,86 @@ import (
 	"go.uber.org/fx"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 )
 
+const NoNewBlocksTimeout = 1 * time.Minute
 const BlocksStep int32 = 1000
 
-func Serve(l *zerolog.Logger, updatesClient *waves.UpdatesClient, conn connectors.Connector) {
+type App struct {
+	wg  *sync.WaitGroup
+	log *zerolog.Logger
+}
+
+func (app App) isCtxDone(ctx context.Context) bool {
+	select {
+	case <-ctx.Done():
+		app.log.Info().Msg("shutdown signal received. Finishing...")
+		return true
+	default:
+		return false
+	}
+}
+
+func (app App) serve(ctx context.Context, updatesClient *waves.UpdatesClient, conn connectors.Connector) {
+	app.wg.Add(1)
+	defer app.wg.Done()
+
 	currentHeight, err := conn.GetHeight()
 	if err != nil {
-		l.Fatal().Err(err).Msg("failed to get current height")
+		app.log.Fatal().Err(err).Msg("failed to get current height")
 	}
-	l.Info().Str("from_height", strconv.Itoa(int(currentHeight))).Msg("Start serving...")
+	app.log.Info().Str("from_height", strconv.Itoa(int(currentHeight))).Msg("Start serving...")
 
 	newBlockchainHeight := updatesClient.GetCurrentHeight()
 
 	var heightDiff int32
 	blocksStep := BlocksStep
 	var prevBlockStep int32 = 0 // Переменная для хранения предыдущей разницы
-
+MainLoop:
 	for {
+		if app.isCtxDone(ctx) {
+			return
+		}
 		heightDiff = newBlockchainHeight - currentHeight
 		realTimeMode := !(heightDiff >= BlocksStep)
 
 		if realTimeMode {
 			newBlockchainHeight = updatesClient.GetCurrentHeight() // Запрос текущей высоты блокчейна
-			l.Info().
+			app.log.Info().
 				Str("db", strconv.Itoa(int(currentHeight))).
 				Str("blockchain", strconv.Itoa(int(newBlockchainHeight))).
 				Msg("Height")
 			heightDiff = newBlockchainHeight - currentHeight
 			if heightDiff == 0 {
-				l.Info().Msg("No new blocks. Waiting for 1 minute...")
-				time.Sleep(1 * time.Minute)
-				continue
+				app.log.Info().Msg("No new blocks. Waiting for " + NoNewBlocksTimeout.String() + "...")
+				tick := time.Tick(1 * time.Second)
+				var timeout <-chan time.Time
+			NoNewBlockWaiting:
+				for range tick {
+					if timeout == nil {
+						timeout = time.After(NoNewBlocksTimeout)
+					}
+					select {
+					case <-timeout:
+						break NoNewBlockWaiting
+					default:
+						if app.isCtxDone(ctx) {
+							return
+						}
+					}
+				}
+				continue MainLoop
 			} else if heightDiff < 0 {
-				l.Fatal().Msg("Height difference is negative! Possible data inconsistency.")
+				app.log.Fatal().Msg("Height difference is negative! Possible data inconsistency.")
 			}
 			blocksStep = heightDiff
 		}
 
 		// Печатаем информацию только если разница отличается от предыдущей
 		if prevBlockStep != blocksStep {
-			l.Info().
+			app.log.Info().
 				Str("from", strconv.Itoa(int(currentHeight))).
 				Str("to", strconv.Itoa(int(newBlockchainHeight))).
 				Str("step", strconv.Itoa(int(blocksStep))).
@@ -60,15 +99,32 @@ func Serve(l *zerolog.Logger, updatesClient *waves.UpdatesClient, conn connector
 		updatesClient.GetBlocks(results, currentHeight+1, blocksStep)
 		updates := updatesClient.GetUpdates(results)
 		if err := conn.Insert(updates); err != nil {
-			l.Fatal().Err(err).Msg("")
+			app.log.Fatal().Err(err).Msg("")
 		}
 
 		// Обновляем текущую высоту
 		currentHeight += blocksStep
-		l.Info().Str("to", strconv.Itoa(int(currentHeight))).Msg("Updated")
+		app.log.Info().Str("to", strconv.Itoa(int(currentHeight))).Msg("Updated")
 
 		prevBlockStep = blocksStep
 	}
+}
+
+func NewApp(lc fx.Lifecycle, l *zerolog.Logger, uc *waves.UpdatesClient, conn connectors.Connector) *App {
+	bg, cancel := context.WithCancel(context.Background())
+	app := &App{wg: &sync.WaitGroup{}, log: l}
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			go app.serve(bg, uc, conn)
+			return nil
+		},
+		OnStop: func(ctx context.Context) error {
+			cancel()
+			app.wg.Wait()
+			return nil
+		},
+	})
+	return app
 }
 
 func NewLogger(_ fx.Lifecycle) (*zerolog.Logger, error) {
@@ -84,6 +140,7 @@ func NewLogger(_ fx.Lifecycle) (*zerolog.Logger, error) {
 func main() {
 	fx.New(
 		fx.Provide(
+			NewApp,
 			fx.Annotate(
 				connectors.NewConnector,
 				fx.As(new(connectors.Connector)),
@@ -96,6 +153,6 @@ func main() {
 			),
 			NewLogger,
 		),
-		fx.Invoke(Serve),
+		fx.Invoke(func(app *App) {}),
 	).Run()
 }
