@@ -73,10 +73,6 @@ type BlocksHeightResponse struct {
 	Height int32 `json:"height"`
 }
 
-func toBase58String(addr []byte) string {
-	return base58.Encode(addr)
-}
-
 type UpdatesClient struct {
 	conn             blockchainupdates.BlockchainUpdatesApiClient
 	rest             *http.Client
@@ -88,7 +84,7 @@ type UpdatesClient struct {
 func (uc *UpdatesClient) GetCurrentHeight() int32 {
 	r, err := uc.rest.Get(uc.nodeURL + "/blocks/height")
 	if err != nil {
-		uc.log.Fatal().Err(err).Msg("")
+		uc.log.Fatal().Err(err).Msg("Failed to fetch current height")
 	}
 	defer func() {
 		if err := r.Body.Close(); err != nil {
@@ -99,7 +95,7 @@ func (uc *UpdatesClient) GetCurrentHeight() int32 {
 	var target BlocksHeightResponse
 
 	if err := json.NewDecoder(r.Body).Decode(&target); err != nil {
-		uc.log.Fatal().Err(err).Msg("")
+		uc.log.Fatal().Err(err).Msg("Failed to decode blocks height response")
 	}
 
 	return target.Height - 1
@@ -133,7 +129,7 @@ func (uc *UpdatesClient) decomposeBalanceUpdate(bu *events.StateUpdate_BalanceUp
 	var asset ReferencedAsset
 
 	if assetId := bu.AmountAfter.AssetId; assetId != nil {
-		b58assetId := toBase58String(assetId)
+		b58assetId := extractAssetID(assetId)
 		var ok bool
 		asset, ok = uc.referencedAssets[b58assetId]
 		if !ok {
@@ -141,10 +137,10 @@ func (uc *UpdatesClient) decomposeBalanceUpdate(bu *events.StateUpdate_BalanceUp
 			uc.referencedAssets[b58assetId] = asset
 		}
 	} else {
-		asset = Asset
+		asset = AssetWaves
 	}
 
-	address := toBase58String(bu.Address)
+	address := toBase58(bu.Address)
 	beforeSubunits := bu.AmountBefore
 	afterSubunits := bu.AmountAfter.Amount
 	deltaSubunits := afterSubunits - beforeSubunits

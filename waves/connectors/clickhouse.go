@@ -13,7 +13,7 @@ import (
 )
 
 type ClickHouseConfig interface {
-	GetClickHouseDSN() string
+	GetDSN() string
 }
 
 type ClickHouseConnector struct {
@@ -142,7 +142,7 @@ func (chc *ClickHouseConnector) createTables(dbName string) error {
 }
 
 func NewConnector(lc fx.Lifecycle, l *zerolog.Logger, config ClickHouseConfig) (*ClickHouseConnector, error) {
-	chConfig, err := url.Parse(config.GetClickHouseDSN())
+	chConfig, err := url.Parse(config.GetDSN())
 	if err != nil {
 		return nil, err
 	}

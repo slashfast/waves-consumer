@@ -8,7 +8,6 @@ import (
 	blockchainupdates "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/events/grpc"
 	"go.uber.org/fx"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -24,7 +23,7 @@ type App struct {
 func (app App) isCtxDone(ctx context.Context) bool {
 	select {
 	case <-ctx.Done():
-		app.log.Info().Msg("shutdown signal received. Finishing...")
+		app.log.Info().Msg("Shutdown signal received")
 		return true
 	default:
 		return false
@@ -37,9 +36,9 @@ func (app App) serve(ctx context.Context, updatesClient *waves.UpdatesClient, co
 
 	currentHeight, err := conn.GetHeight()
 	if err != nil {
-		app.log.Fatal().Err(err).Msg("failed to get current height")
+		app.log.Fatal().Err(err).Msg("Failed to get current height")
 	}
-	app.log.Info().Str("from_height", strconv.Itoa(int(currentHeight))).Msg("Start serving...")
+	app.log.Info().Int32("from_height", currentHeight).Msg("Serving")
 
 	newBlockchainHeight := updatesClient.GetCurrentHeight()
 
@@ -52,17 +51,17 @@ MainLoop:
 			return
 		}
 		heightDiff = newBlockchainHeight - currentHeight
-		realTimeMode := !(heightDiff >= BlocksStep)
+		isRealTimeMode := !(heightDiff >= BlocksStep)
 
-		if realTimeMode {
+		if isRealTimeMode {
 			newBlockchainHeight = updatesClient.GetCurrentHeight() // Запрос текущей высоты блокчейна
-			app.log.Info().
-				Str("db", strconv.Itoa(int(currentHeight))).
-				Str("blockchain", strconv.Itoa(int(newBlockchainHeight))).
-				Msg("Height")
 			heightDiff = newBlockchainHeight - currentHeight
 			if heightDiff == 0 {
-				app.log.Info().Msg("No new blocks. Waiting for " + NoNewBlocksTimeout.String() + "...")
+				app.log.Info().
+					Int32("db", currentHeight).
+					Int32("blockchain", newBlockchainHeight).
+					Dur("next_check_in", NoNewBlocksTimeout).
+					Msg("Synced")
 				tick := time.Tick(1 * time.Second)
 				var timeout <-chan time.Time
 			NoNewBlockWaiting:
@@ -81,7 +80,7 @@ MainLoop:
 				}
 				continue MainLoop
 			} else if heightDiff < 0 {
-				app.log.Fatal().Msg("Height difference is negative! Possible data inconsistency.")
+				app.log.Fatal().Msg("Height difference is negative")
 			}
 			blocksStep = heightDiff
 		}
@@ -89,22 +88,22 @@ MainLoop:
 		// Печатаем информацию только если разница отличается от предыдущей
 		if prevBlockStep != blocksStep {
 			app.log.Info().
-				Str("from", strconv.Itoa(int(currentHeight))).
-				Str("to", strconv.Itoa(int(newBlockchainHeight))).
-				Str("step", strconv.Itoa(int(blocksStep))).
-				Msg("Sync blocks")
+				Int32("from", currentHeight).
+				Int32("to", newBlockchainHeight).
+				Int32("step", blocksStep).
+				Msg("Sync")
 		}
 
 		results := make(chan *blockchainupdates.GetBlockUpdateResponse, blocksStep)
 		updatesClient.GetBlocks(results, currentHeight+1, blocksStep)
 		updates := updatesClient.GetUpdates(results)
-		if err := conn.Insert(updates); err != nil {
-			app.log.Fatal().Err(err).Msg("")
+		if err := conn.Insert(updates, !isRealTimeMode); err != nil {
+			app.log.Fatal().Err(err).Msg("Failed to insert block updates")
 		}
 
 		// Обновляем текущую высоту
 		currentHeight += blocksStep
-		app.log.Info().Str("to", strconv.Itoa(int(currentHeight))).Msg("Updated")
+		app.log.Info().Int32("to", currentHeight).Msg("Updated")
 
 		prevBlockStep = blocksStep
 	}

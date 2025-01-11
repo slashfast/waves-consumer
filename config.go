@@ -23,7 +23,7 @@ func (c Config) GetGRPCAddress() string {
 	return c.GRPCAddress
 }
 
-func (c Config) GetClickHouseDSN() string {
+func (c Config) GetDSN() string {
 	return c.DSN
 }
 

@@ -1,27 +1,48 @@
 package waves
 
+const (
+	Genesis         = 1
+	Payment         = 2
+	Issue           = 3
+	Transfer        = 4
+	Reissue         = 5
+	Burn            = 6
+	Exchange        = 7
+	Lease           = 8
+	LeaseCancel     = 9
+	CreateAlias     = 10
+	MassTransfer    = 11
+	DataTransaction = 12
+	SetScript       = 13
+	SponsorFee      = 14
+	SetAssetScript  = 15
+	InvokeScript    = 16
+	UpdateAssetInfo = 17
+	Ethereum        = 18
+)
+
 var TxTypes = map[string]uint8{
-	"Transaction_Genesis":         1,
-	"Transaction_Payment":         2,
-	"Transaction_Issue":           3,
-	"Transaction_Transfer":        4,
-	"Transaction_Reissue":         5,
-	"Transaction_Exchange":        7,
-	"Transaction_Lease":           8,
-	"Transaction_LeaseCancel":     9,
-	"Transaction_Burn":            6,
-	"Transaction_CreateAlias":     10,
-	"Transaction_MassTransfer":    11,
-	"Transaction_DataTransaction": 12,
-	"Transaction_SponsorFee":      14,
-	"Transaction_SetScript":       13,
-	"Transaction_SetAssetScript":  15,
-	"Transaction_InvokeScript":    16,
-	"Transaction_UpdateAssetInfo": 17,
-	"Transaction_Ethereum":        18,
+	"Transaction_Genesis":         Genesis,
+	"Transaction_Payment":         Payment,
+	"Transaction_Issue":           Issue,
+	"Transaction_Transfer":        Transfer,
+	"Transaction_Reissue":         Reissue,
+	"Transaction_Burn":            Burn,
+	"Transaction_Exchange":        Exchange,
+	"Transaction_Lease":           Lease,
+	"Transaction_LeaseCancel":     LeaseCancel,
+	"Transaction_CreateAlias":     CreateAlias,
+	"Transaction_MassTransfer":    MassTransfer,
+	"Transaction_DataTransaction": DataTransaction,
+	"Transaction_SponsorFee":      SponsorFee,
+	"Transaction_SetScript":       SetScript,
+	"Transaction_SetAssetScript":  SetAssetScript,
+	"Transaction_InvokeScript":    InvokeScript,
+	"Transaction_UpdateAssetInfo": UpdateAssetInfo,
+	"Transaction_Ethereum":        Ethereum,
 }
 
-var Asset = ReferencedAsset{
+var AssetWaves = ReferencedAsset{
 	Id:       "WAVES",
 	Decimals: 8,
 	Name:     "Waves",
