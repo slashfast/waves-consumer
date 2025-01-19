@@ -2,156 +2,143 @@ package main
 
 import (
 	"context"
+	fxzerolog "github.com/efectn/fx-zerolog"
 	"github.com/rs/zerolog"
-	"github.com/slashfast/wavesconsumer/v2/waves"
-	"github.com/slashfast/wavesconsumer/v2/waves/connectors"
-	blockchainupdates "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/events/grpc"
+	"github.com/slashfast/wavesconsumer/v2/config"
+	"github.com/slashfast/wavesconsumer/v2/store"
+	"github.com/slashfast/wavesconsumer/v2/store/clickhouse"
+	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/events"
 	"go.uber.org/fx"
+	"io"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
-	"sync"
+	"strings"
 	"time"
 )
 
-const NoNewBlocksTimeout = 1 * time.Minute
-const BlocksStep int32 = 1000
-
 type App struct {
-	wg  *sync.WaitGroup
-	log *zerolog.Logger
+	ctx     context.Context
+	log     zerolog.Logger
+	updates *UpdatesApi
+	node    *NodeApi
+	store   store.Connector
 }
 
-func (app App) isCtxDone(ctx context.Context) bool {
-	select {
-	case <-ctx.Done():
-		app.log.Info().Msg("Shutdown signal received")
-		return true
-	default:
-		return false
-	}
-}
-
-func (app App) serve(ctx context.Context, updatesClient *waves.UpdatesClient, conn connectors.Connector) {
-	app.wg.Add(1)
-	defer app.wg.Done()
-
-	currentHeight, err := conn.GetHeight()
-	if err != nil {
-		app.log.Fatal().Err(err).Msg("Failed to get current height")
-	}
-	app.log.Info().Int32("from_height", currentHeight).Msg("Serving")
-
-	newBlockchainHeight := updatesClient.GetCurrentHeight()
-
-	var heightDiff int32
-	blocksStep := BlocksStep
-	var prevBlockStep int32 = 0 // Переменная для хранения предыдущей разницы
-MainLoop:
-	for {
-		if app.isCtxDone(ctx) {
-			return
-		}
-		heightDiff = newBlockchainHeight - currentHeight
-		isRealTimeMode := !(heightDiff >= BlocksStep)
-
-		if isRealTimeMode {
-			newBlockchainHeight = updatesClient.GetCurrentHeight() // Запрос текущей высоты блокчейна
-			heightDiff = newBlockchainHeight - currentHeight
-			if heightDiff == 0 {
-				app.log.Info().
-					Int32("db", currentHeight).
-					Int32("blockchain", newBlockchainHeight).
-					Dur("next_check_in", NoNewBlocksTimeout).
-					Msg("Synced")
-				tick := time.Tick(1 * time.Second)
-				var timeout <-chan time.Time
-			NoNewBlockWaiting:
-				for range tick {
-					if timeout == nil {
-						timeout = time.After(NoNewBlocksTimeout)
-					}
-					select {
-					case <-timeout:
-						break NoNewBlockWaiting
-					default:
-						if app.isCtxDone(ctx) {
-							return
-						}
-					}
-				}
-				continue MainLoop
-			} else if heightDiff < 0 {
-				app.log.Fatal().Msg("Height difference is negative")
-			}
-			blocksStep = heightDiff
-		}
-
-		// Печатаем информацию только если разница отличается от предыдущей
-		if prevBlockStep != blocksStep {
-			app.log.Info().
-				Int32("from", currentHeight).
-				Int32("to", newBlockchainHeight).
-				Int32("step", blocksStep).
-				Msg("Sync")
-		}
-
-		results := make(chan *blockchainupdates.GetBlockUpdateResponse, blocksStep)
-		updatesClient.GetBlocks(results, currentHeight+1, blocksStep)
-		updates := updatesClient.GetUpdates(results)
-		if err := conn.Insert(updates, !isRealTimeMode); err != nil {
-			app.log.Fatal().Err(err).Msg("Failed to insert block updates")
-		}
-
-		// Обновляем текущую высоту
-		currentHeight += blocksStep
-		app.log.Info().Int32("to", currentHeight).Msg("Updated")
-
-		prevBlockStep = blocksStep
-	}
-}
-
-func NewApp(lc fx.Lifecycle, l *zerolog.Logger, uc *waves.UpdatesClient, conn connectors.Connector) *App {
-	bg, cancel := context.WithCancel(context.Background())
-	app := &App{wg: &sync.WaitGroup{}, log: l}
+func NewApp(
+	ctx context.Context,
+	lc fx.Lifecycle,
+	l *zerolog.Logger,
+	updates *UpdatesApi,
+	node *NodeApi,
+	store store.Connector,
+) *App {
+	app := &App{ctx, l.With().Str("instance", "app").Logger(), updates, node, store}
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			go app.serve(bg, uc, conn)
-			return nil
-		},
-		OnStop: func(ctx context.Context) error {
-			cancel()
-			app.wg.Wait()
+			go app.run()
 			return nil
 		},
 	})
 	return app
 }
 
-func NewLogger(_ fx.Lifecycle) (*zerolog.Logger, error) {
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+func (app App) run() {
+	dbHeight, err := app.store.GetHeight()
+	if err != nil {
+		app.log.Fatal().Err(err).Msg("Failed to get current database height")
+	}
+	app.log.Info().Int32("from_height", dbHeight).Msg("Running")
+
+	startHeight := dbHeight + 1
+	updatesCh := make(chan *events.BlockchainUpdated, app.updates.config.GetUpdatesBufferSize())
+	currentHeight := make(chan int32)
+
+	go app.node.PollCurrentHeight(currentHeight)
+	go app.updates.Consume(updatesCh, currentHeight, startHeight)
+	go app.store.RunLoader(updatesCh, currentHeight, startHeight)
+
+	<-app.ctx.Done()
+}
+
+func NewLogger(lc fx.Lifecycle) (*zerolog.Logger, error) {
+	//wr := diode.NewWriter(os.Stderr, 1000, 0, func(missed int) {
+	//	log.Warn().Msgf("Logger dropped %d messages", missed)
+	//})
+	wr := os.Stderr
+
+	err := os.MkdirAll("logs", 0744)
+	if err != nil {
+		return nil, err
+	}
+
+	lf, err := os.OpenFile("logs/"+time.Now().Format(time.RFC3339)+".log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0744)
+	if err != nil {
+		return nil, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			if err := lf.Close(); err != nil {
+				return err
+			}
+			//return
+			return nil
+		},
+	})
+
 	logger := zerolog.
-		New(os.Stderr).
+		New(io.MultiWriter(wr, lf)).
 		With().
 		Timestamp().
 		Logger()
+
 	return &logger, nil
 }
 
+func NewContext(lc fx.Lifecycle) context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+	lc.Append(fx.Hook{
+		OnStop: func(_ context.Context) error {
+			cancel()
+			return nil
+		},
+	})
+	return ctx
+}
+
 func main() {
+	if strings.ToLower(os.Getenv("DEBUG")) == "true" {
+		go func() {
+			err := http.ListenAndServe("localhost:6060", nil)
+			if err != nil {
+				panic(err)
+			}
+		}()
+	}
+
 	fx.New(
+		fx.Invoke(func() {
+			zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+		}),
 		fx.Provide(
 			NewApp,
 			fx.Annotate(
-				connectors.NewConnector,
-				fx.As(new(connectors.Connector)),
+				clickhouse.NewConnector,
+				fx.As(new(store.Connector)),
 			),
-			waves.NewUpdatesClient,
+			NewUpdatesApi,
+			NewNodeApi,
 			fx.Annotate(
-				LoadConfigFromEnv,
-				fx.As(new(waves.NodeClientConfig)),
-				fx.As(new(connectors.ClickHouseConfig)),
+				config.LoadConfigFromEnv,
+				fx.As(new(NodeApiConfig)),
+				fx.As(new(UpdatesApiConfig)),
+				fx.As(new(clickhouse.ConnectorConfig)),
 			),
 			NewLogger,
+			NewContext,
 		),
-		fx.Invoke(func(app *App) {}),
+		fx.Invoke(func(a *App) {}),
+		fx.WithLogger(fxzerolog.InitPtr()),
 	).Run()
 }
