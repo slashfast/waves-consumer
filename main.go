@@ -76,16 +76,6 @@ func NewLogger(lc fx.Lifecycle) (*zerolog.Logger, error) {
 		return nil, err
 	}
 
-	lc.Append(fx.Hook{
-		OnStop: func(ctx context.Context) error {
-			if err := lf.Close(); err != nil {
-				return err
-			}
-			//return
-			return nil
-		},
-	})
-
 	logger := zerolog.
 		New(io.MultiWriter(wr, lf)).
 		With().
