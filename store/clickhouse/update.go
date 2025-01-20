@@ -74,7 +74,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.GenesisTransaction))
 
-				txs.RecipientAddress = append(txs.RecipientAddress, base58.Encode(d.RecipientAddress))
+				txs.RecipientAddress = append(txs.RecipientAddress, utils.MustAddressFromBody(d.RecipientAddress))
 				txs.Amount = append(txs.Amount, d.Amount)
 
 			case *waves.Transaction_Payment:
@@ -83,7 +83,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.PaymentTransaction))
 
-				txs.RecipientAddress = append(txs.RecipientAddress, base58.Encode(d.RecipientAddress))
+				txs.RecipientAddress = append(txs.RecipientAddress, utils.MustAddressFromBody(d.RecipientAddress))
 				txs.Amount = append(txs.Amount, d.Amount)
 
 			case *waves.Transaction_Issue:
@@ -109,7 +109,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 
 				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.Amount.AssetId))
 				txs.Amount = append(txs.Amount, d.Amount.Amount)
-				txs.RecipientAddress = append(txs.RecipientAddress, base58.Encode(metadata.RecipientAddress))
+				txs.RecipientAddress = append(txs.RecipientAddress, utils.MustAddressFromBody(metadata.RecipientAddress))
 				txs.RecipientAlias = append(txs.RecipientAlias, d.Recipient.GetAlias())
 				txs.FeeAssetId = append(txs.FeeAssetId, utils.ExtractAssetId(wavesTx.Fee.AssetId))
 				txs.Attachment = append(txs.Attachment, base58.Encode(d.Attachment))
@@ -190,7 +190,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.LeaseTransaction))
 
-				txs.RecipientAddress = append(txs.RecipientAddress, base58.Encode(metadata.RecipientAddress))
+				txs.RecipientAddress = append(txs.RecipientAddress, utils.MustAddressFromBody(metadata.RecipientAddress))
 				txs.RecipientAlias = append(txs.RecipientAlias, d.Recipient.GetAlias())
 				txs.Amount = append(txs.Amount, d.Amount)
 
@@ -224,7 +224,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 					txsTransfers.TxUid = append(txsTransfers.TxUid, txUid)
 					txsTransfers.TxId = append(txsTransfers.TxId, txId)
 					txsTransfers.PositionInTx = append(txsTransfers.PositionInTx, int32(i))
-					txsTransfers.RecipientAddress = append(txsTransfers.RecipientAddress, base58.Encode(metadata.RecipientsAddresses[i]))
+					txsTransfers.RecipientAddress = append(txsTransfers.RecipientAddress, utils.MustAddressFromBody(metadata.RecipientsAddresses[i]))
 					txsTransfers.RecipientAlias = append(txsTransfers.RecipientAlias, transfer.Recipient.GetAlias())
 					txsTransfers.Amount = append(txsTransfers.Amount, transfer.Amount)
 					txsTransfers.Height = append(txsTransfers.Height, height)
