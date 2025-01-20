@@ -43,14 +43,14 @@ func NewApp(
 }
 
 func (app App) run() {
-	dbHeight, err := app.store.GetHeight()
+	dbHeight, err := app.store.Height()
 	if err != nil {
 		app.log.Fatal().Err(err).Msg("Failed to get current database height")
 	}
 	app.log.Info().Int32("from_height", dbHeight).Msg("Running")
 
 	startHeight := dbHeight + 1
-	updatesCh := make(store.UpdatesChannel, app.updates.config.GetUpdatesBufferSize())
+	updatesCh := make(store.UpdatesChannel, app.updates.config.UpdatesBufferSize())
 	currentHeight := make(chan int32)
 
 	go app.node.PollCurrentHeight(currentHeight)

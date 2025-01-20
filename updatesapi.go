@@ -18,11 +18,11 @@ import (
 )
 
 type UpdatesApiConfig interface {
-	GetUpdatesApiAddress() string
+	UpdatesApiAddress() string
 	IsUpdatesApiSecure() bool
-	GetUpdatesBufferSize() int
-	GetUpdatesMaxWorkers() int
-	GetUpdatesAfterSyncDelay() time.Duration
+	UpdatesBufferSize() int
+	UpdatesMaxWorkers() int
+	UpdatesAfterSyncDelay() time.Duration
 }
 
 type UpdatesApi struct {
@@ -46,7 +46,7 @@ func NewUpdatesApi(
 	}
 
 	conn, err := grpc.NewClient(
-		config.GetUpdatesApiAddress(),
+		config.UpdatesApiAddress(),
 		grpc.WithTransportCredentials(creds),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(8*1024*1024)),
 		grpc.WithDefaultServiceConfig(`{
@@ -119,11 +119,11 @@ func (u *UpdatesApi) Consume(updatesCh store.UpdatesChannel, currentHeightCh cha
 		close(updatesCh)
 	}()
 
-	sem := make(chan struct{}, u.config.GetUpdatesMaxWorkers())
+	sem := make(chan struct{}, u.config.UpdatesMaxWorkers())
 	defer close(sem)
 
-	bufferSize := int32(u.config.GetUpdatesBufferSize())
-	afterSyncDelay := u.config.GetUpdatesAfterSyncDelay()
+	bufferSize := int32(u.config.UpdatesBufferSize())
+	afterSyncDelay := u.config.UpdatesAfterSyncDelay()
 
 	heightBuffer := make(chan int32, bufferSize)
 	go u.runHeightBufferFiller(heightBuffer, start)

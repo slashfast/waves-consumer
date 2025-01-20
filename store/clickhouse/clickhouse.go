@@ -14,8 +14,8 @@ import (
 )
 
 type ConnectorConfig interface {
-	GetStoreDsn() string
-	GetStoreBufferSize() int32
+	StoreDsn() string
+	StoreBufferSize() int32
 }
 
 func dsnIntoOpts(dsn string) (*ch.Options, error) {
@@ -47,7 +47,7 @@ type Connector struct {
 }
 
 func NewConnector(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, config ConnectorConfig) (store.Connector, error) {
-	opts, err := dsnIntoOpts(config.GetStoreDsn())
+	opts, err := dsnIntoOpts(config.StoreDsn())
 	opts.Compression = ch.CompressionDisabled
 	if err != nil {
 		return nil, err
@@ -74,11 +74,11 @@ func NewConnector(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, confi
 		conn:   conn,
 		log:    l.With().Str("instance", "store").Logger(),
 		wg:     wg,
-		config: Config{config.GetStoreBufferSize()},
+		config: Config{config.StoreBufferSize()},
 	}, nil
 }
 
-func (c *Connector) GetHeight() (int32, error) {
+func (c *Connector) Height() (int32, error) {
 	c.wg.Add(1)
 	defer c.wg.Done()
 

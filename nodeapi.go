@@ -13,7 +13,7 @@ import (
 )
 
 type NodeApiConfig interface {
-	GetNodeApiAddress() string
+	NodeApiAddress() string
 	IsNodeApiSecure() bool
 }
 type NodeApi struct {
@@ -30,7 +30,7 @@ func NewNodeApi(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, config 
 		creds = insecure.NewCredentials()
 	}
 	conn, err := grpc.NewClient(
-		config.GetNodeApiAddress(),
+		config.NodeApiAddress(),
 		grpc.WithTransportCredentials(creds),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(8*1024*1024)),
 		grpc.WithDefaultServiceConfig(`{

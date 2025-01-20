@@ -14,17 +14,17 @@ type Config struct {
 	nodeApiAddress  string
 	nodeIsApiSecure bool
 
-	UpdatesApiAddress     string
-	UpdatesIsApiSecure    bool
-	UpdatesBufferSize     int
-	UpdatesMaxWorkers     int
-	UpdatesAfterSyncDelay time.Duration
+	updatesApiAddress     string
+	updatesIsApiSecure    bool
+	updatesBufferSize     int
+	updatesMaxWorkers     int
+	updatesAfterSyncDelay time.Duration
 
 	storeDsn        string
 	storeBufferSize int32
 }
 
-func (c Config) GetNodeApiAddress() string {
+func (c Config) NodeApiAddress() string {
 	return c.nodeApiAddress
 }
 
@@ -32,29 +32,29 @@ func (c Config) IsNodeApiSecure() bool {
 	return c.nodeIsApiSecure
 }
 
-func (c Config) GetUpdatesApiAddress() string {
-	return c.UpdatesApiAddress
+func (c Config) UpdatesApiAddress() string {
+	return c.updatesApiAddress
 }
 
 func (c Config) IsUpdatesApiSecure() bool {
-	return c.UpdatesIsApiSecure
+	return c.updatesIsApiSecure
 }
 
-func (c Config) GetUpdatesBufferSize() int {
-	return c.UpdatesBufferSize
+func (c Config) UpdatesBufferSize() int {
+	return c.updatesBufferSize
 }
 
-func (c Config) GetUpdatesMaxWorkers() int {
-	return c.UpdatesMaxWorkers
+func (c Config) UpdatesMaxWorkers() int {
+	return c.updatesMaxWorkers
 }
 
-func (c Config) GetUpdatesAfterSyncDelay() time.Duration { return c.UpdatesAfterSyncDelay }
+func (c Config) UpdatesAfterSyncDelay() time.Duration { return c.updatesAfterSyncDelay }
 
-func (c Config) GetStoreDsn() string {
+func (c Config) StoreDsn() string {
 	return c.storeDsn
 }
 
-func (c Config) GetStoreBufferSize() int32 {
+func (c Config) StoreBufferSize() int32 {
 	return c.storeBufferSize
 }
 
@@ -137,11 +137,11 @@ func LoadConfigFromEnv(l *zerolog.Logger) (*Config, error) {
 		nodeApiAddress:  p.get("NODE_API_ADDRESS", "", true).(string),
 		nodeIsApiSecure: p.get("NODE_API_SECURE", true, false).(bool),
 
-		UpdatesApiAddress:     p.get("UPDATES_API_ADDRESS", "", true).(string),
-		UpdatesIsApiSecure:    p.get("UPDATES_API_SECURE", true, false).(bool),
-		UpdatesBufferSize:     p.get("UPDATES_BUFFER_SIZE", 1000, false).(int),
-		UpdatesMaxWorkers:     p.get("UPDATES_MAX_WORKERS", 256*4, false).(int),
-		UpdatesAfterSyncDelay: p.get("UPDATES_AFTER_SYNC_DELAY", time.Minute, false).(time.Duration),
+		updatesApiAddress:     p.get("UPDATES_API_ADDRESS", "", true).(string),
+		updatesIsApiSecure:    p.get("UPDATES_API_SECURE", true, false).(bool),
+		updatesBufferSize:     p.get("UPDATES_BUFFER_SIZE", 1000, false).(int),
+		updatesMaxWorkers:     p.get("UPDATES_MAX_WORKERS", 256*4, false).(int),
+		updatesAfterSyncDelay: p.get("UPDATES_AFTER_SYNC_DELAY", time.Minute, false).(time.Duration),
 
 		storeDsn:        p.get("STORE_DSN", "", true).(string),
 		storeBufferSize: p.get("STORE_BUFFER_SIZE", int32(1000), false).(int32),
