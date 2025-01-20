@@ -6,7 +6,7 @@ import (
 
 type UpdatesInput map[string]proto.Input
 
-func NewBaseTxInput(txs *Txs) proto.Input {
+func NewBaseTxInput(txs *TxsBatch) proto.Input {
 	return proto.Input{
 		{"uid", &txs.Uid},
 		{"type", &txs.Type},
@@ -23,7 +23,7 @@ func NewBaseTxInput(txs *Txs) proto.Input {
 	}
 }
 
-func NewTxsArgsInput(args *TxsArgs) proto.Input {
+func NewTxsArgsInput(args *TxsArgsBatch) proto.Input {
 	return proto.Input{
 		{"tx_uid", &args.TxUid},
 		{"tx_id", &args.TxId},
@@ -38,7 +38,7 @@ func NewTxsArgsInput(args *TxsArgs) proto.Input {
 	}
 }
 
-func NewTxsPaymentsInput(payments *TxsPayments) proto.Input {
+func NewTxsPaymentsInput(payments *TxsPaymentsBatch) proto.Input {
 	return proto.Input{
 		{"tx_uid", &payments.TxUid},
 		{"tx_id", &payments.TxId},
@@ -49,7 +49,7 @@ func NewTxsPaymentsInput(payments *TxsPayments) proto.Input {
 	}
 }
 
-func NewUpdatesInput(updates *Updates) UpdatesInput {
+func NewUpdatesInput(updates *UpdatesBatch) UpdatesInput {
 	return UpdatesInput{
 		"blocks": {
 			{"height", &updates.Blocks.Height},
@@ -57,17 +57,17 @@ func NewUpdatesInput(updates *Updates) UpdatesInput {
 			{"timestamp", &updates.Blocks.Timestamp},
 		},
 		"txs_1": append(
-			NewBaseTxInput(updates.Txs1.Txs),
+			NewBaseTxInput(updates.Txs1.TxsBatch),
 			proto.InputColumn{"recipient_address", &updates.Txs1.RecipientAddress},
 			proto.InputColumn{"amount", &updates.Txs1.Amount},
 		),
 		"txs_2": append(
-			NewBaseTxInput(updates.Txs2.Txs),
+			NewBaseTxInput(updates.Txs2.TxsBatch),
 			proto.InputColumn{"recipient_address", &updates.Txs2.RecipientAddress},
 			proto.InputColumn{"amount", &updates.Txs2.Amount},
 		),
 		"txs_3": append(
-			NewBaseTxInput(updates.Txs3.Txs),
+			NewBaseTxInput(updates.Txs3.TxsBatch),
 			proto.InputColumn{"asset_id", &updates.Txs3.AssetId},
 			proto.InputColumn{"asset_name", &updates.Txs3.AssetName},
 			proto.InputColumn{"description", &updates.Txs3.Description},
@@ -77,7 +77,7 @@ func NewUpdatesInput(updates *Updates) UpdatesInput {
 			proto.InputColumn{"script", &updates.Txs3.Script},
 		),
 		"txs_4": append(
-			NewBaseTxInput(updates.Txs4.Txs),
+			NewBaseTxInput(updates.Txs4.TxsBatch),
 			proto.InputColumn{"asset_id", &updates.Txs4.AssetId},
 			proto.InputColumn{"amount", &updates.Txs4.Amount},
 			proto.InputColumn{"recipient_address", &updates.Txs4.RecipientAddress},
@@ -86,18 +86,18 @@ func NewUpdatesInput(updates *Updates) UpdatesInput {
 			proto.InputColumn{"attachment", &updates.Txs4.Attachment},
 		),
 		"txs_5": append(
-			NewBaseTxInput(updates.Txs5.Txs),
+			NewBaseTxInput(updates.Txs5.TxsBatch),
 			proto.InputColumn{"asset_id", &updates.Txs5.AssetId},
 			proto.InputColumn{"amount", &updates.Txs5.Amount},
 			proto.InputColumn{"reissuable", &updates.Txs5.Reissuable},
 		),
 		"txs_6": append(
-			NewBaseTxInput(updates.Txs6.Txs),
+			NewBaseTxInput(updates.Txs6.TxsBatch),
 			proto.InputColumn{"asset_id", &updates.Txs6.AssetId},
 			proto.InputColumn{"amount", &updates.Txs6.Amount},
 		),
 		"txs_7": append(
-			NewBaseTxInput(updates.Txs7.Txs),
+			NewBaseTxInput(updates.Txs7.TxsBatch),
 			proto.InputColumn{"amount", &updates.Txs7.Amount},
 			proto.InputColumn{"price", &updates.Txs7.Price},
 			proto.InputColumn{"amount_asset_id", &updates.Txs7.AmountAssetId},
@@ -127,23 +127,24 @@ func NewUpdatesInput(updates *Updates) UpdatesInput {
 			{"signature", &updates.Txs7Orders.Signature},
 			{"eip712_signature", &updates.Txs7Orders.Eip712Signature},
 			{"price_mode", &updates.Txs7Orders.PriceMode},
+			{"height", &updates.Txs7Orders.PriceMode},
 		},
 		"txs_8": append(
-			NewBaseTxInput(updates.Txs8.Txs),
+			NewBaseTxInput(updates.Txs8.TxsBatch),
 			proto.InputColumn{"recipient_address", &updates.Txs8.RecipientAddress},
 			proto.InputColumn{"recipient_alias", &updates.Txs8.RecipientAlias},
 			proto.InputColumn{"amount", &updates.Txs8.Amount},
 		),
 		"txs_9": append(
-			NewBaseTxInput(updates.Txs9.Txs),
+			NewBaseTxInput(updates.Txs9.TxsBatch),
 			proto.InputColumn{"lease_tx_uid", &updates.Txs9.LeaseTxUid},
 		),
 		"txs_10": append(
-			NewBaseTxInput(updates.Txs10.Txs),
+			NewBaseTxInput(updates.Txs10.TxsBatch),
 			proto.InputColumn{"alias", &updates.Txs10.Alias},
 		),
 		"txs_11": append(
-			NewBaseTxInput(updates.Txs11.Txs),
+			NewBaseTxInput(updates.Txs11.TxsBatch),
 			proto.InputColumn{"asset_id", &updates.Txs11.AssetId},
 			proto.InputColumn{"attachment", &updates.Txs11.Attachment},
 		),
@@ -156,7 +157,7 @@ func NewUpdatesInput(updates *Updates) UpdatesInput {
 			{"amount", &updates.Txs11Transfers.Amount},
 			{"height", &updates.Txs11Transfers.Height},
 		},
-		"txs_12": NewBaseTxInput(updates.Txs12.Txs),
+		"txs_12": NewBaseTxInput(updates.Txs12.TxsBatch),
 		"txs_12_data": {
 			{"tx_uid", &updates.Txs12Data.TxUid},
 			{"tx_id", &updates.Txs12Data.TxId},
@@ -170,20 +171,21 @@ func NewUpdatesInput(updates *Updates) UpdatesInput {
 			{"height", &updates.Txs12Data.Height},
 		},
 		"txs_13": append(
-			NewBaseTxInput(updates.Txs13.Txs),
+			NewBaseTxInput(updates.Txs13.TxsBatch),
 			proto.InputColumn{"script", &updates.Txs13.Script},
 		),
 		"txs_14": append(
-			NewBaseTxInput(updates.Txs14.Txs),
+			NewBaseTxInput(updates.Txs14.TxsBatch),
 			proto.InputColumn{"asset_id", &updates.Txs14.AssetId},
 			proto.InputColumn{"min_sponsored_asset_fee", &updates.Txs14.MinSponsoredAssetFee},
 		),
 		"txs_15": append(
-			NewBaseTxInput(updates.Txs15.Txs),
+			NewBaseTxInput(updates.Txs15.TxsBatch),
+			proto.InputColumn{"asset_id", &updates.Txs15.AssetId},
 			proto.InputColumn{"script", &updates.Txs15.Script},
 		),
 		"txs_16": append(
-			NewBaseTxInput(updates.Txs16.Txs),
+			NewBaseTxInput(updates.Txs16.TxsBatch),
 			proto.InputColumn{"dapp_address", &updates.Txs16.DappAddress},
 			proto.InputColumn{"dapp_alias", &updates.Txs16.DappAlias},
 			proto.InputColumn{"function_name", &updates.Txs16.FunctionName},
@@ -192,13 +194,13 @@ func NewUpdatesInput(updates *Updates) UpdatesInput {
 		"txs_16_args":     NewTxsArgsInput(updates.Txs16Args),
 		"txs_16_payments": NewTxsPaymentsInput(updates.Txs16Payments),
 		"txs_17": append(
-			NewBaseTxInput(updates.Txs17.Txs),
+			NewBaseTxInput(updates.Txs17.TxsBatch),
 			proto.InputColumn{"asset_id", &updates.Txs17.AssetId},
 			proto.InputColumn{"asset_name", &updates.Txs17.AssetName},
 			proto.InputColumn{"description", &updates.Txs17.Description},
 		),
 		"txs_18": append(
-			NewBaseTxInput(updates.Txs18.Txs),
+			NewBaseTxInput(updates.Txs18.TxsBatch),
 			proto.InputColumn{"bytes", &updates.Txs18.Bytes},
 			proto.InputColumn{"function_name", &updates.Txs18.FunctionName},
 		),

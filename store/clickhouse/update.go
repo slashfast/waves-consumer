@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) error {
-
+func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates, error) {
+	updates := NewUpdates()
 	height := blockUpdate.Height
 	blockId := base58.Encode(blockUpdate.Id)
 
@@ -18,9 +18,9 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) error {
 	block := blockAppend.GetBlock()
 	blockTimestamp := time.UnixMilli(block.Block.Header.Timestamp)
 
-	c.buff.Blocks.Height.Append(height)
-	c.buff.Blocks.Id.Append(blockId)
-	c.buff.Blocks.Timestamp.Append(blockTimestamp)
+	updates.Blocks.Height = append(updates.Blocks.Height, height)
+	updates.Blocks.Id = append(updates.Blocks.Id, blockId)
+	updates.Blocks.Timestamp = append(updates.Blocks.Timestamp, blockTimestamp)
 
 	transactions := block.Block.Transactions
 	transactionsMetadata := blockAppend.TransactionsMetadata
@@ -42,184 +42,186 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) error {
 		txIds = append(txIds, txId)
 
 		fillBaseTx := func(txs *Txs, status string) {
-			txs.Uid.Append(txUid)
-			txs.Id.Append(txId)
-			txs.Sender.Append(base58.Encode(transactionsMetadata[i].SenderAddress))
-			txs.Height.Append(height)
-			txs.Proofs.Append(proofs)
-			txs.Status.Append(status)
-			txs.Signature.Append(proofs[0])
+			txs.Uid = append(txs.Uid, txUid)
+			txs.Id = append(txs.Id, txId)
+			txs.Sender = append(txs.Sender, base58.Encode(transactionsMetadata[i].SenderAddress))
+			txs.Height = append(txs.Height, height)
+			txs.Proofs = append(txs.Proofs, proofs)
+			txs.Status = append(txs.Status, status)
+			txs.Signature = append(txs.Signature, proofs[0])
 		}
 
 		switch signedTx := commonTx.Transaction.(type) {
 		case *waves.SignedTransaction_WavesTransaction:
 			wavesTx := signedTx.WavesTransaction
 			fillBaseWavesTx := func(txs *Txs, txType int8) {
-				txs.Type.Append(txType)
-				txs.SenderPublicKey.Append(base58.Encode(wavesTx.SenderPublicKey))
-				txs.Timestamp.Append(time.UnixMilli(wavesTx.Timestamp))
-				txs.Version.Append(wavesTx.Version)
-				txs.Fee.Append(wavesTx.GetFee().GetAmount())
+				txs.Type = append(txs.Type, txType)
+				txs.SenderPublicKey = append(txs.SenderPublicKey, base58.Encode(wavesTx.SenderPublicKey))
+				txs.Timestamp = append(txs.Timestamp, time.UnixMilli(wavesTx.Timestamp))
+				txs.Version = append(txs.Version, wavesTx.Version)
+				txs.Fee = append(txs.Fee, wavesTx.GetFee().GetAmount())
 			}
 			switch data := wavesTx.GetData().(type) {
 			case *waves.Transaction_Genesis:
-				txs := c.buff.Txs1
+				txs := updates.Txs1
 				d := data.Genesis
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.GenesisTransaction))
 
-				txs.RecipientAddress.Append(base58.Encode(d.RecipientAddress))
-				txs.Amount.Append(d.Amount)
+				txs.RecipientAddress = append(txs.RecipientAddress, base58.Encode(d.RecipientAddress))
+				txs.Amount = append(txs.Amount, d.Amount)
 
 			case *waves.Transaction_Payment:
-				txs := c.buff.Txs2
+				txs := updates.Txs2
 				d := data.Payment
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.PaymentTransaction))
 
-				txs.RecipientAddress.Append(base58.Encode(d.RecipientAddress))
-				txs.Amount.Append(d.Amount)
+				txs.RecipientAddress = append(txs.RecipientAddress, base58.Encode(d.RecipientAddress))
+				txs.Amount = append(txs.Amount, d.Amount)
 
 			case *waves.Transaction_Issue:
-				txs := c.buff.Txs3
+				txs := updates.Txs3
 				d := data.Issue
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.IssueTransaction))
 
-				txs.AssetId.Append(txId)
-				txs.AssetName.Append(d.Name)
-				txs.Description.Append(d.Description)
-				txs.Amount.Append(d.Amount)
-				txs.Decimals.Append(d.Decimals)
-				txs.Reissuable.Append(d.Reissuable)
-				txs.Script.Append(base58.Encode(d.Script))
+				txs.AssetId = append(txs.AssetId, txId)
+				txs.AssetName = append(txs.AssetName, d.Name)
+				txs.Description = append(txs.Description, d.Description)
+				txs.Amount = append(txs.Amount, d.Amount)
+				txs.Decimals = append(txs.Decimals, d.Decimals)
+				txs.Reissuable = append(txs.Reissuable, d.Reissuable)
+				txs.Script = append(txs.Script, base58.Encode(d.Script))
 
 			case *waves.Transaction_Transfer:
-				txs := c.buff.Txs4
+				txs := updates.Txs4
 				d := data.Transfer
 				metadata := transactionsMetadata[i].GetTransfer()
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.TransferTransaction))
 
-				txs.AssetId.Append(utils.ExtractAssetId(d.Amount.AssetId))
-				txs.Amount.Append(d.Amount.Amount)
-				txs.RecipientAddress.Append(base58.Encode(metadata.RecipientAddress))
-				txs.RecipientAlias.Append(d.Recipient.GetAlias())
-				txs.FeeAssetId.Append(utils.ExtractAssetId(wavesTx.Fee.AssetId))
-				txs.Attachment.Append(base58.Encode(d.Attachment))
+				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.Amount.AssetId))
+				txs.Amount = append(txs.Amount, d.Amount.Amount)
+				txs.RecipientAddress = append(txs.RecipientAddress, base58.Encode(metadata.RecipientAddress))
+				txs.RecipientAlias = append(txs.RecipientAlias, d.Recipient.GetAlias())
+				txs.FeeAssetId = append(txs.FeeAssetId, utils.ExtractAssetId(wavesTx.Fee.AssetId))
+				txs.Attachment = append(txs.Attachment, base58.Encode(d.Attachment))
 
 			case *waves.Transaction_Reissue:
-				txs := c.buff.Txs5
+				txs := updates.Txs5
 				d := data.Reissue
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.ReissueTransaction))
 
-				txs.AssetId.Append(utils.ExtractAssetId(d.AssetAmount.AssetId))
-				txs.Amount.Append(d.AssetAmount.Amount)
-				txs.Reissuable.Append(d.Reissuable)
+				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.AssetAmount.AssetId))
+				txs.Amount = append(txs.Amount, d.AssetAmount.Amount)
+				txs.Reissuable = append(txs.Reissuable, d.Reissuable)
 
 			case *waves.Transaction_Burn:
-				txs := c.buff.Txs6
+				txs := updates.Txs6
 				d := data.Burn
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.BurnTransaction))
 
-				txs.AssetId.Append(utils.ExtractAssetId(d.AssetAmount.AssetId))
-				txs.Amount.Append(d.AssetAmount.Amount)
+				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.AssetAmount.AssetId))
+				txs.Amount = append(txs.Amount, d.AssetAmount.Amount)
 
 			case *waves.Transaction_Exchange:
-				txs := c.buff.Txs7
-				txsOrders := c.buff.Txs7Orders
+				txs := updates.Txs7
+				txsOrders := updates.Txs7Orders
 				d := data.Exchange
 				metadata := transactionsMetadata[i].GetExchange()
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.ExchangeTransaction))
 
-				txs.Amount.Append(d.Amount)
-				txs.Price.Append(d.Price)
-				txs.AmountAssetId.Append(utils.ExtractAssetId(d.Orders[0].AssetPair.AmountAssetId))
-				txs.PriceAssetId.Append(utils.ExtractAssetId(d.Orders[0].AssetPair.PriceAssetId))
-				txs.BuyMatcherFee.Append(d.BuyMatcherFee)
-				txs.SellMatcherFee.Append(d.SellMatcherFee)
-				txs.FeeAssetId.Append(utils.ExtractAssetId(wavesTx.Fee.AssetId))
+				txs.Amount = append(txs.Amount, d.Amount)
+				txs.Price = append(txs.Price, d.Price)
+				txs.AmountAssetId = append(txs.AmountAssetId, utils.ExtractAssetId(d.Orders[0].AssetPair.AmountAssetId))
+				txs.PriceAssetId = append(txs.PriceAssetId, utils.ExtractAssetId(d.Orders[0].AssetPair.PriceAssetId))
+				txs.BuyMatcherFee = append(txs.BuyMatcherFee, d.BuyMatcherFee)
+				txs.SellMatcherFee = append(txs.SellMatcherFee, d.SellMatcherFee)
+				txs.FeeAssetId = append(txs.FeeAssetId, utils.ExtractAssetId(wavesTx.Fee.AssetId))
 
 				for i, order := range d.Orders {
 					proofs := make([]string, len(order.Proofs))
 					for i, proof := range order.Proofs {
 						proofs[i] = base58.Encode(proof)
 					}
-					txsOrders.TxUid.Append(txUid)
-					txsOrders.TxId.Append(txId)
-					txsOrders.Id.Append(base58.Encode(metadata.OrderIds[i]))
-					txsOrders.Version.Append(order.Version)
-					txsOrders.Sender.Append(base58.Encode(metadata.OrderSenderAddresses[i]))
-					txsOrders.SenderPublicKey.Append(base58.Encode(metadata.OrderSenderPublicKeys[i]))
-					txsOrders.MatcherPublicKey.Append(base58.Encode(order.MatcherPublicKey))
-					txsOrders.AmountAssetId.Append(utils.ExtractAssetId(order.AssetPair.AmountAssetId))
-					txsOrders.PriceAssetId.Append(utils.ExtractAssetId(order.AssetPair.PriceAssetId))
-					txsOrders.OrderType.Append(int32(order.OrderSide))
-					txsOrders.Amount.Append(order.Amount)
-					txsOrders.Price.Append(order.Price)
-					txsOrders.Timestamp.Append(time.UnixMilli(order.Timestamp))
-					txsOrders.Expiration.Append(time.UnixMilli(order.Expiration))
-					txsOrders.MatcherFee.Append(order.MatcherFee.Amount)
-					txsOrders.MatcherFeeAssetId.Append(utils.ExtractAssetId(order.MatcherFee.AssetId))
-					txsOrders.Proofs.Append(proofs)
-					txsOrders.Signature.Append(proofs[0])
-					txsOrders.Eip712Signature.Append(base58.Encode(order.GetEip712Signature()))
-					txsOrders.PriceMode.Append(int32(order.PriceMode))
+
+					txsOrders.TxUid = append(txsOrders.TxUid, txUid)
+					txsOrders.TxId = append(txsOrders.TxId, txId)
+					txsOrders.Id = append(txsOrders.Id, base58.Encode(metadata.OrderIds[i]))
+					txsOrders.Version = append(txsOrders.Version, order.Version)
+					txsOrders.Sender = append(txsOrders.Sender, base58.Encode(metadata.OrderSenderAddresses[i]))
+					txsOrders.SenderPublicKey = append(txsOrders.SenderPublicKey, base58.Encode(metadata.OrderSenderPublicKeys[i]))
+					txsOrders.MatcherPublicKey = append(txsOrders.MatcherPublicKey, base58.Encode(order.MatcherPublicKey))
+					txsOrders.AmountAssetId = append(txsOrders.AmountAssetId, utils.ExtractAssetId(order.AssetPair.AmountAssetId))
+					txsOrders.PriceAssetId = append(txsOrders.PriceAssetId, utils.ExtractAssetId(order.AssetPair.PriceAssetId))
+					txsOrders.OrderType = append(txsOrders.OrderType, int32(order.OrderSide))
+					txsOrders.Amount = append(txsOrders.Amount, order.Amount)
+					txsOrders.Price = append(txsOrders.Price, order.Price)
+					txsOrders.Timestamp = append(txsOrders.Timestamp, time.UnixMilli(order.Timestamp))
+					txsOrders.Expiration = append(txsOrders.Expiration, time.UnixMilli(order.Expiration))
+					txsOrders.MatcherFee = append(txsOrders.MatcherFee, order.MatcherFee.Amount)
+					txsOrders.MatcherFeeAssetId = append(txsOrders.MatcherFeeAssetId, utils.ExtractAssetId(order.MatcherFee.AssetId))
+					txsOrders.Proofs = append(txsOrders.Proofs, proofs)
+					txsOrders.Signature = append(txsOrders.Signature, proofs[0])
+					txsOrders.Eip712Signature = append(txsOrders.Eip712Signature, base58.Encode(order.GetEip712Signature()))
+					txsOrders.PriceMode = append(txsOrders.PriceMode, int32(order.PriceMode))
+					txsOrders.Height = append(txsOrders.Height, height)
 				}
 
 			case *waves.Transaction_Lease:
-				txs := c.buff.Txs8
+				txs := updates.Txs8
 				d := data.Lease
 				metadata := transactionsMetadata[i].GetLease()
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.LeaseTransaction))
 
-				txs.RecipientAddress.Append(base58.Encode(metadata.RecipientAddress))
-				txs.RecipientAlias.Append(d.Recipient.GetAlias())
-				txs.Amount.Append(d.Amount)
+				txs.RecipientAddress = append(txs.RecipientAddress, base58.Encode(metadata.RecipientAddress))
+				txs.RecipientAlias = append(txs.RecipientAlias, d.Recipient.GetAlias())
+				txs.Amount = append(txs.Amount, d.Amount)
 
 			case *waves.Transaction_LeaseCancel:
-				txs := c.buff.Txs9
+				txs := updates.Txs9
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.LeaseCancelTransaction))
 
-				txs.LeaseTxUid.Append(txUid)
+				txs.LeaseTxUid = append(txs.LeaseTxUid, txUid)
 
 			case *waves.Transaction_CreateAlias:
-				txs := c.buff.Txs10
+				txs := updates.Txs10
 				d := data.CreateAlias
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.CreateAliasTransaction))
 
-				txs.Alias.Append(d.Alias)
+				txs.Alias = append(txs.Alias, d.Alias)
 
 			case *waves.Transaction_MassTransfer:
-				txs := c.buff.Txs11
-				txsTransfers := c.buff.Txs11Transfers
+				txs := updates.Txs11
+				txsTransfers := updates.Txs11Transfers
 				d := data.MassTransfer
 				metadata := transactionsMetadata[i].GetMassTransfer()
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.MassTransferTransaction))
 
-				txs.AssetId.Append(utils.ExtractAssetId(d.AssetId))
-				txs.Attachment.Append(base58.Encode(d.Attachment))
+				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.AssetId))
+				txs.Attachment = append(txs.Attachment, base58.Encode(d.Attachment))
 
 				for i, transfer := range d.Transfers {
-					txsTransfers.TxUid.Append(txUid)
-					txsTransfers.TxId.Append(txId)
-					txsTransfers.PositionInTx.Append(int32(i))
-					txsTransfers.RecipientAddress.Append(base58.Encode(metadata.RecipientsAddresses[i]))
-					txsTransfers.RecipientAlias.Append(transfer.Recipient.GetAlias())
-					txsTransfers.Amount.Append(transfer.Amount)
-					txsTransfers.Height.Append(height)
+					txsTransfers.TxUid = append(txsTransfers.TxUid, txUid)
+					txsTransfers.TxId = append(txsTransfers.TxId, txId)
+					txsTransfers.PositionInTx = append(txsTransfers.PositionInTx, int32(i))
+					txsTransfers.RecipientAddress = append(txsTransfers.RecipientAddress, base58.Encode(metadata.RecipientsAddresses[i]))
+					txsTransfers.RecipientAlias = append(txsTransfers.RecipientAlias, transfer.Recipient.GetAlias())
+					txsTransfers.Amount = append(txsTransfers.Amount, transfer.Amount)
+					txsTransfers.Height = append(txsTransfers.Height, height)
 				}
 
 			case *waves.Transaction_DataTransaction:
-				txs := c.buff.Txs12
-				txsData := c.buff.Txs12Data
+				txs := updates.Txs12
+				txsData := updates.Txs12Data
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.DataTransaction))
 
@@ -236,47 +238,47 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) error {
 					case *waves.DataTransactionData_DataEntry_StringValue:
 						dataType = "string"
 					}
-					txsData.TxUid.Append(txUid)
-					txsData.TxId.Append(txId)
-					txsData.PositionInTx.Append(int32(i))
-					txsData.DataKey.Append(utils.EscapeUnicodeNull(dataEntry.Key))
-					txsData.DataType.Append(dataType)
-					txsData.DataValueInteger.Append(dataEntry.GetIntValue())
-					txsData.DataValueBoolean.Append(dataEntry.GetBoolValue())
-					txsData.DataValueBinary.Append(utils.ToPrefixedBase64(dataEntry.GetBinaryValue()))
-					txsData.DataValueString.Append(dataEntry.GetStringValue())
-					txsData.Height.Append(height)
+					txsData.TxUid = append(txsData.TxUid, txUid)
+					txsData.TxId = append(txsData.TxId, txId)
+					txsData.PositionInTx = append(txsData.PositionInTx, int32(i))
+					txsData.DataKey = append(txsData.DataKey, utils.EscapeUnicodeNull(dataEntry.Key))
+					txsData.DataType = append(txsData.DataType, dataType)
+					txsData.DataValueInteger = append(txsData.DataValueInteger, dataEntry.GetIntValue())
+					txsData.DataValueBoolean = append(txsData.DataValueBoolean, dataEntry.GetBoolValue())
+					txsData.DataValueBinary = append(txsData.DataValueBinary, utils.ToPrefixedBase64(dataEntry.GetBinaryValue()))
+					txsData.DataValueString = append(txsData.DataValueString, dataEntry.GetStringValue())
+					txsData.Height = append(txsData.Height, height)
 				}
 			case *waves.Transaction_SetScript:
-				txs := c.buff.Txs13
+				txs := updates.Txs13
 				d := data.SetScript
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.SetScriptTransaction))
 
-				txs.Script.Append(utils.ToPrefixedBase64(d.Script))
+				txs.Script = append(txs.Script, utils.ToPrefixedBase64(d.Script))
 
 			case *waves.Transaction_SponsorFee:
-				txs := c.buff.Txs14
+				txs := updates.Txs14
 				d := data.SponsorFee
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.SponsorshipTransaction))
 
-				txs.AssetId.Append(utils.ExtractAssetId(d.MinFee.AssetId))
-				txs.MinSponsoredAssetFee.Append(d.MinFee.Amount)
+				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.MinFee.AssetId))
+				txs.MinSponsoredAssetFee = append(txs.MinSponsoredAssetFee, d.MinFee.Amount)
 
 			case *waves.Transaction_SetAssetScript:
-				txs := c.buff.Txs15
+				txs := updates.Txs15
 				d := data.SetAssetScript
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.SetAssetScriptTransaction))
 
-				txs.AssetId.Append(utils.ExtractAssetId(d.AssetId))
-				txs.Script.Append(utils.ToPrefixedBase64(d.Script))
+				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.AssetId))
+				txs.Script = append(txs.Script, utils.ToPrefixedBase64(d.Script))
 
 			case *waves.Transaction_InvokeScript:
-				txs := c.buff.Txs16
-				txsArgs := c.buff.Txs16Args
-				txsPayments := c.buff.Txs16Payments
+				txs := updates.Txs16
+				txsArgs := updates.Txs16Args
+				txsPayments := updates.Txs16Payments
 				d := data.InvokeScript
 				metadata := transactionsMetadata[i].GetInvokeScript()
 				txStatus := "success"
@@ -287,15 +289,15 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) error {
 				fillBaseTx(txs.Txs, txStatus)
 				fillBaseWavesTx(txs.Txs, int8(proto.InvokeScriptTransaction))
 
-				txs.DappAddress.Append(base58.Encode(metadata.DAppAddress))
-				txs.DappAlias.Append(d.DApp.GetAlias())
-				txs.FunctionName.Append(metadata.FunctionName)
-				txs.FeeAssetId.Append(utils.ExtractAssetId(wavesTx.Fee.AssetId))
+				txs.DappAddress = append(txs.DappAddress, base58.Encode(metadata.DAppAddress))
+				txs.DappAlias = append(txs.DappAlias, d.DApp.GetAlias())
+				txs.FunctionName = append(txs.FunctionName, metadata.FunctionName)
+				txs.FeeAssetId = append(txs.FeeAssetId, utils.ExtractAssetId(wavesTx.Fee.AssetId))
 
 				for i, arg := range metadata.Arguments {
 					err := AppendTxArg(txsArgs, arg, txId, txUid, int32(i), height)
 					if err != nil {
-						return err
+						return nil, err
 					}
 				}
 
@@ -304,67 +306,67 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) error {
 				}
 
 			case *waves.Transaction_UpdateAssetInfo:
-				txs := c.buff.Txs17
+				txs := updates.Txs17
 				d := data.UpdateAssetInfo
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.UpdateAssetInfoTransaction))
 
-				txs.AssetId.Append(utils.ExtractAssetId(d.AssetId))
-				txs.AssetName.Append(utils.EscapeUnicodeNull(d.Name))
-				txs.Description.Append(utils.EscapeUnicodeNull(d.Description))
+				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.AssetId))
+				txs.AssetName = append(txs.AssetName, utils.EscapeUnicodeNull(d.Name))
+				txs.Description = append(txs.Description, utils.EscapeUnicodeNull(d.Description))
 
 			}
 		case *waves.SignedTransaction_EthereumTransaction:
-			txs := c.buff.Txs18
+			txs := updates.Txs18
 			metadata := transactionsMetadata[i].GetEthereum()
 
-			txs.Txs.Type.Append(int8(proto.EthereumMetamaskTransaction))
-			txs.Txs.SenderPublicKey.Append(base58.Encode(metadata.SenderPublicKey))
-			txs.Txs.Timestamp.Append(time.UnixMilli(metadata.Timestamp))
-			txs.Txs.Version.Append(1)
-			txs.Txs.Fee.Append(metadata.Fee)
+			txs.Txs.Type = append(txs.Txs.Type, int8(proto.EthereumMetamaskTransaction))
+			txs.Txs.SenderPublicKey = append(txs.Txs.SenderPublicKey, base58.Encode(metadata.SenderPublicKey))
+			txs.Txs.Timestamp = append(txs.Txs.Timestamp, time.UnixMilli(metadata.Timestamp))
+			txs.Txs.Version = append(txs.Txs.Version, 1)
+			txs.Txs.Fee = append(txs.Txs.Fee, metadata.Fee)
 
-			txs.Bytes.Append(utils.ToPrefixedBase64(signedTx.EthereumTransaction))
+			txs.Bytes = append(txs.Bytes, utils.ToPrefixedBase64(signedTx.EthereumTransaction))
 
 			switch actionMetadata := metadata.Action.(type) {
 			case *events.TransactionMetadata_EthereumMetadata_Invoke:
 				if actionMetadata.Invoke.Result.GetErrorMessage() != nil {
-					txs.Txs.Status.Append("script_execution_failed")
+					txs.Txs.Status = append(txs.Txs.Status, "script_execution_failed")
 				} else {
-					txs.Txs.Status.Append("success")
+					txs.Txs.Status = append(txs.Txs.Status, "success")
 				}
 
 				for i, arg := range actionMetadata.Invoke.Arguments {
-					err := AppendTxArg(c.buff.Txs18Args, arg, txId, txUid, int32(i), height)
+					err := AppendTxArg(updates.Txs18Args, arg, txId, txUid, int32(i), height)
 					if err != nil {
-						return err
+						return nil, err
 					}
 
 				}
 
 				for i, payment := range actionMetadata.Invoke.Payments {
-					AppendTxPayment(c.buff.Txs18Payments, payment, txId, txUid, int32(i), height)
+					AppendTxPayment(updates.Txs18Payments, payment, txId, txUid, int32(i), height)
 				}
 			}
 
 		}
 	}
 
-	balances := c.buff.Balances
+	balances := updates.Balances
 
 	for i, su := range txsStateUpdates {
 		for _, bu := range su.Balances {
 			delta := bu.AmountAfter.Amount - bu.AmountBefore
 
-			balances.Address.Append(base58.Encode(bu.Address))
-			balances.AssetId.Append(utils.ExtractAssetId(bu.AmountAfter.AssetId))
-			balances.Amount.Append(bu.AmountAfter.Amount)
-			balances.Delta.Append(delta)
-			balances.TxUid.Append(txUids[i])
-			balances.TxId.Append(txIds[i])
-			balances.Height.Append(height)
+			balances.Address = append(balances.Address, base58.Encode(bu.Address))
+			balances.AssetId = append(balances.AssetId, utils.ExtractAssetId(bu.AmountAfter.AssetId))
+			balances.Amount = append(balances.Amount, bu.AmountAfter.Amount)
+			balances.Delta = append(balances.Delta, delta)
+			balances.TxUid = append(balances.TxUid, txUids[i])
+			balances.TxId = append(balances.TxId, txIds[i])
+			balances.Height = append(balances.Height, height)
 		}
 	}
 
-	return nil
+	return updates, nil
 }

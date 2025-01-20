@@ -7,7 +7,6 @@ import (
 	"github.com/slashfast/wavesconsumer/v2/config"
 	"github.com/slashfast/wavesconsumer/v2/store"
 	"github.com/slashfast/wavesconsumer/v2/store/clickhouse"
-	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/events"
 	"go.uber.org/fx"
 	"io"
 	"net/http"
@@ -51,7 +50,7 @@ func (app App) run() {
 	app.log.Info().Int32("from_height", dbHeight).Msg("Running")
 
 	startHeight := dbHeight + 1
-	updatesCh := make(chan *events.BlockchainUpdated, app.updates.config.GetUpdatesBufferSize())
+	updatesCh := make(store.UpdatesChannel, app.updates.config.GetUpdatesBufferSize())
 	currentHeight := make(chan int32)
 
 	go app.node.PollCurrentHeight(currentHeight)

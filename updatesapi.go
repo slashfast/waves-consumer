@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"github.com/rs/zerolog"
-	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/events"
+	"github.com/slashfast/wavesconsumer/v2/store"
 	bu "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/events/grpc"
 	"go.uber.org/fx"
 	"google.golang.org/grpc"
@@ -112,11 +112,7 @@ func (u *UpdatesApi) runHeightBufferFiller(ch chan int32, start int32) {
 	}
 }
 
-func (u *UpdatesApi) Consume(
-	updatesCh chan *events.BlockchainUpdated,
-	currentHeightCh chan int32,
-	start int32,
-) {
+func (u *UpdatesApi) Consume(updatesCh store.UpdatesChannel, currentHeightCh chan int32, start int32) {
 	wg := sync.WaitGroup{}
 	defer func() {
 		wg.Wait()

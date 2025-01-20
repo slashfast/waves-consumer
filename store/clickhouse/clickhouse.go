@@ -9,6 +9,7 @@ import (
 	"github.com/slashfast/wavesconsumer/v2/store"
 	"go.uber.org/fx"
 	"net/url"
+	"runtime"
 	"sync"
 )
 
@@ -43,11 +44,11 @@ type Connector struct {
 	log    zerolog.Logger
 	wg     *sync.WaitGroup
 	config Config
-	buff   *Updates
 }
 
 func NewConnector(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, config ConnectorConfig) (store.Connector, error) {
 	opts, err := dsnIntoOpts(config.GetStoreDsn())
+	opts.Compression = ch.CompressionDisabled
 	if err != nil {
 		return nil, err
 	}
@@ -71,10 +72,9 @@ func NewConnector(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, confi
 	return &Connector{
 		ctx:    ctx,
 		conn:   conn,
-		log:    l.With().Str("instance", "clickhouse").Logger(),
+		log:    l.With().Str("instance", "store").Logger(),
 		wg:     wg,
 		config: Config{config.GetStoreBufferSize()},
-		buff:   NewUpdates(),
 	}, nil
 }
 
@@ -93,21 +93,68 @@ func (c *Connector) GetHeight() (int32, error) {
 }
 
 func (c *Connector) RunLoader(updatesCh store.UpdatesChannel, currentHeightCh chan int32, startHeight int32) {
-	targetHeight := <-currentHeightCh
-	storeHeight := startHeight
-	isRtMode := false
-	buffCap := c.config.bufferSize
+	c.wg.Add(1)
+	defer c.wg.Done()
+
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
+
+	parsedCh := make(chan *Updates, 1000)
+	defer close(parsedCh)
+
+	go c.runParser(parsedCh, currentHeightCh, startHeight)
+
+	sem := make(chan struct{}, runtime.NumCPU())
+	defer close(sem)
+
+	worker := func(update store.Update) {
+		wg.Add(1)
+		defer func() { <-sem }()
+		defer wg.Done()
+		parsedUpdate, err := c.parseUpdate(update)
+		if err != nil {
+			c.log.Fatal().Err(err).Msg("failed to parse update")
+		}
+		parsedCh <- parsedUpdate
+	}
 
 	for {
 		select {
 		case <-c.ctx.Done():
 			return
 		case update := <-updatesCh:
-			err := c.parseUpdate(update)
-			if err != nil {
-				c.log.Fatal().Err(err).Msg("failed to parse update")
+			sem <- struct{}{}
+			go worker(update)
+		}
+	}
+}
+
+func (c *Connector) runParser(parsedBlocksCh chan *Updates, currentHeightCh chan int32, startHeight int32) {
+	c.wg.Add(1)
+	defer c.wg.Done()
+
+	targetHeight := <-currentHeightCh
+	storeHeight := startHeight
+	expectedHeight := storeHeight
+	isRtMode := false
+	buffCap := c.config.bufferSize
+	wg := &sync.WaitGroup{}
+	defer wg.Wait()
+
+	parsedBlocksBuffer := make(map[int32]*Updates)
+	updatesBuffer := NewUpdatesBatch()
+
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case update := <-parsedBlocksCh:
+			parsedBlocksBuffer[update.Blocks.Height[0]] = update
+
+			if update, exists := parsedBlocksBuffer[expectedHeight]; exists {
+				updatesBuffer.Append(update)
+				delete(parsedBlocksBuffer, expectedHeight)
+				expectedHeight++
 			}
 
 			heightDelta := targetHeight - storeHeight
@@ -119,23 +166,25 @@ func (c *Connector) RunLoader(updatesCh store.UpdatesChannel, currentHeightCh ch
 				buffCap = heightDelta
 			}
 
-			isNeedToFlush := int32(len(c.buff.Blocks.Height)) == buffCap
+			buffLen := len(updatesBuffer.Blocks.Height)
+			isNeedToFlush := int32(buffLen) == buffCap
 
 			if isRtMode || isNeedToFlush {
-				err := c.flushBuffer()
+				err := c.flushBuffer(updatesBuffer)
 				if err != nil {
 					c.log.Fatal().Err(err).Msg("failed to flush buffer")
 				}
+				storeHeight += buffCap
 			}
-			storeHeight++
 		}
 	}
 }
 
-func (c *Connector) flushBuffer() error {
+func (c *Connector) flushBuffer(buff *UpdatesBatch) error {
 	c.wg.Add(1)
 	defer c.wg.Done()
-	inputs := NewUpdatesInput(c.buff)
+	inputs := NewUpdatesInput(buff)
+
 	for table, input := range inputs {
 		err := c.conn.Do(context.Background(), ch.Query{
 			Body:  "INSERT INTO " + table + " VALUES",
@@ -149,10 +198,18 @@ func (c *Connector) flushBuffer() error {
 			return errors.Join(err, errors.New(table))
 		}
 	}
-	c.resetBuffer()
+
+	*buff = *NewUpdatesBatch()
+	c.log.Debug().Msg("buffer flushed")
+
 	return nil
 }
 
-func (c *Connector) resetBuffer() {
-	c.buff = NewUpdates()
-}
+//func MergeUpdates(update1, update2 *Updates) {
+//	update1.Blocks.Height.Append(update2.Blocks.Height)
+//	update1.Blocks.Id.AppendArr(update2.Blocks.Id.)
+//	update1.Blocks.Timestamp.Append(update2.Blocks.Height)
+//	update1.Blocks.Height.Append(update2.Blocks.Height)
+//	update1.Blocks.Id.AppendArr(update2.Blocks.Id.)
+//	update1.Blocks.Timestamp.Append(update2.Blocks.Height)
+//}
