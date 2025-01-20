@@ -136,7 +136,7 @@ func (c *Connector) runParser(parsedBlocksCh chan *Updates, currentHeightCh chan
 	targetHeight := <-currentHeightCh
 	storeHeight := startHeight
 	expectedHeight := storeHeight
-	isRtMode := false
+	isQuietMode := false
 	buffCap := c.config.bufferSize
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
@@ -158,18 +158,18 @@ func (c *Connector) runParser(parsedBlocksCh chan *Updates, currentHeightCh chan
 			}
 
 			heightDelta := targetHeight - storeHeight
-			if !isRtMode {
-				isRtMode = heightDelta <= buffCap
+			if !isQuietMode {
+				isQuietMode = heightDelta <= buffCap
 			}
 
-			if isRtMode {
+			if isQuietMode {
 				buffCap = heightDelta
 			}
 
 			buffLen := len(updatesBuffer.Blocks.Height)
 			isNeedToFlush := int32(buffLen) == buffCap
 
-			if isRtMode || isNeedToFlush {
+			if isNeedToFlush {
 				err := c.flushBuffer(updatesBuffer)
 				if err != nil {
 					c.log.Fatal().Err(err).Msg("failed to flush buffer")
