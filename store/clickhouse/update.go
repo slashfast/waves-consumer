@@ -329,8 +329,9 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 			}
 		case *waves.SignedTransaction_EthereumTransaction:
 			txs := updates.Txs18
+			txStatus := "success"
+			funcName := ""
 			metadata := transactionsMetadata[i].GetEthereum()
-
 			txs.Txs.Type = append(txs.Txs.Type, int8(proto.EthereumMetamaskTransaction))
 			txs.Txs.SenderPublicKey = append(txs.Txs.SenderPublicKey, base58.Encode(metadata.SenderPublicKey))
 			txs.Txs.Timestamp = append(txs.Txs.Timestamp, time.UnixMilli(metadata.Timestamp))
@@ -342,10 +343,9 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 			switch actionMetadata := metadata.Action.(type) {
 			case *events.TransactionMetadata_EthereumMetadata_Invoke:
 				if actionMetadata.Invoke.Result.GetErrorMessage() != nil {
-					txs.Txs.Status = append(txs.Txs.Status, "script_execution_failed")
-				} else {
-					txs.Txs.Status = append(txs.Txs.Status, "success")
+					txStatus = "script_execution_failed"
 				}
+				funcName = actionMetadata.Invoke.FunctionName
 
 				for i, arg := range actionMetadata.Invoke.Arguments {
 					err := AppendTxArg(updates.Txs18Args, arg, txId, txUid, int32(i), height)
@@ -359,7 +359,8 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 					AppendTxPayment(updates.Txs18Payments, payment, txId, txUid, int32(i), height)
 				}
 			}
-
+			txs.FunctionName = append(txs.FunctionName, funcName)
+			fillBaseTx(txs.Txs, txStatus)
 		}
 	}
 
