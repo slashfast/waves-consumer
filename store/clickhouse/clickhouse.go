@@ -79,6 +79,9 @@ func NewConnector(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, confi
 }
 
 func (c *Connector) GetHeight() (int32, error) {
+	c.wg.Add(1)
+	defer c.wg.Done()
+
 	var maxHeightResult proto.ColInt32
 	err := c.conn.Do(context.Background(), ch.Query{
 		Body:   "SELECT max(height) FROM blocks",
@@ -93,9 +96,6 @@ func (c *Connector) GetHeight() (int32, error) {
 }
 
 func (c *Connector) RunLoader(updatesCh store.UpdatesChannel, currentHeightCh chan int32, startHeight int32) {
-	c.wg.Add(1)
-	defer c.wg.Done()
-
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
 
@@ -130,9 +130,6 @@ func (c *Connector) RunLoader(updatesCh store.UpdatesChannel, currentHeightCh ch
 }
 
 func (c *Connector) runParser(parsedBlocksCh chan *Updates, currentHeightCh chan int32, startHeight int32) {
-	c.wg.Add(1)
-	defer c.wg.Done()
-
 	targetHeight := <-currentHeightCh
 	storeHeight := startHeight
 	expectedHeight := storeHeight
