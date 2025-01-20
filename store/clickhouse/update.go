@@ -35,6 +35,12 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 		for i, proof := range commonTx.Proofs {
 			proofs[i] = base58.Encode(proof)
 		}
+
+		signature := ""
+		if len(proofs) > 0 {
+			signature = proofs[0]
+		}
+
 		txUid := (UidBase * int64(height)) + int64(i)
 		txId := base58.Encode(transactionIds[i])
 
@@ -48,7 +54,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 			txs.Height = append(txs.Height, height)
 			txs.Proofs = append(txs.Proofs, proofs)
 			txs.Status = append(txs.Status, status)
-			txs.Signature = append(txs.Signature, proofs[0])
+			txs.Signature = append(txs.Signature, signature)
 		}
 
 		switch signedTx := commonTx.Transaction.(type) {
@@ -149,6 +155,11 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 						proofs[i] = base58.Encode(proof)
 					}
 
+					signature := ""
+					if len(proofs) > 0 {
+						signature = proofs[0]
+					}
+
 					txsOrders.TxUid = append(txsOrders.TxUid, txUid)
 					txsOrders.TxId = append(txsOrders.TxId, txId)
 					txsOrders.Id = append(txsOrders.Id, base58.Encode(metadata.OrderIds[i]))
@@ -166,7 +177,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 					txsOrders.MatcherFee = append(txsOrders.MatcherFee, order.MatcherFee.Amount)
 					txsOrders.MatcherFeeAssetId = append(txsOrders.MatcherFeeAssetId, utils.ExtractAssetId(order.MatcherFee.AssetId))
 					txsOrders.Proofs = append(txsOrders.Proofs, proofs)
-					txsOrders.Signature = append(txsOrders.Signature, proofs[0])
+					txsOrders.Signature = append(txsOrders.Signature, signature)
 					txsOrders.Eip712Signature = append(txsOrders.Eip712Signature, base58.Encode(order.GetEip712Signature()))
 					txsOrders.PriceMode = append(txsOrders.PriceMode, int32(order.PriceMode))
 					txsOrders.Height = append(txsOrders.Height, height)
