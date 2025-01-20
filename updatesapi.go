@@ -211,7 +211,15 @@ func (u *UpdatesApi) Consume(updatesCh store.UpdatesChannel, currentHeightCh cha
 
 		if heightDelta == 0 {
 			logger.Info().Msg("Synced")
-			time.Sleep(afterSyncDelay)
+		DelayLoop:
+			for {
+				select {
+				case <-u.ctx.Done():
+					return
+				case <-time.After(afterSyncDelay):
+					break DelayLoop
+				}
+			}
 		}
 
 		if isQuietMode {
