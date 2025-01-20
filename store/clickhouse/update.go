@@ -256,7 +256,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 					txsData.DataType = append(txsData.DataType, dataType)
 					txsData.DataValueInteger = append(txsData.DataValueInteger, dataEntry.GetIntValue())
 					txsData.DataValueBoolean = append(txsData.DataValueBoolean, dataEntry.GetBoolValue())
-					txsData.DataValueBinary = append(txsData.DataValueBinary, utils.ToPrefixedBase64(dataEntry.GetBinaryValue()))
+					txsData.DataValueBinary = append(txsData.DataValueBinary, utils.ToBase64(dataEntry.GetBinaryValue()))
 					txsData.DataValueString = append(txsData.DataValueString, dataEntry.GetStringValue())
 					txsData.Height = append(txsData.Height, height)
 				}
@@ -266,7 +266,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.SetScriptTransaction))
 
-				txs.Script = append(txs.Script, utils.ToPrefixedBase64(d.Script))
+				txs.Script = append(txs.Script, utils.ToBase64(d.Script))
 
 			case *waves.Transaction_SponsorFee:
 				txs := updates.Txs14
@@ -284,7 +284,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				fillBaseWavesTx(txs.Txs, int8(proto.SetAssetScriptTransaction))
 
 				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.AssetId))
-				txs.Script = append(txs.Script, utils.ToPrefixedBase64(d.Script))
+				txs.Script = append(txs.Script, utils.ToBase64(d.Script))
 
 			case *waves.Transaction_InvokeScript:
 				txs := updates.Txs16
@@ -338,7 +338,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 			txs.Txs.Version = append(txs.Txs.Version, 1)
 			txs.Txs.Fee = append(txs.Txs.Fee, metadata.Fee)
 
-			txs.Bytes = append(txs.Bytes, utils.ToPrefixedBase64(signedTx.EthereumTransaction))
+			txs.Bytes = append(txs.Bytes, utils.ToBase64(signedTx.EthereumTransaction))
 
 			switch actionMetadata := metadata.Action.(type) {
 			case *events.TransactionMetadata_EthereumMetadata_Invoke:

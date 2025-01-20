@@ -22,6 +22,10 @@ func ToPrefixedBase64(bytes []byte) string {
 	return "base64:" + base64.StdEncoding.EncodeToString(bytes)
 }
 
+func ToBase64(bytes []byte) string {
+	return base64.StdEncoding.EncodeToString(bytes)
+}
+
 func EscapeUnicodeNull(s string) string {
 	return strings.ReplaceAll(s, "\x00", "\\0")
 }
