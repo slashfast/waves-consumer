@@ -138,8 +138,6 @@ func (c *Connector) runParser(parsedBlocksCh chan *Updates, currentHeightCh chan
 	expectedHeight := storeHeight
 	isQuietMode := false
 	buffCap := c.config.bufferSize
-	wg := &sync.WaitGroup{}
-	defer wg.Wait()
 
 	parsedBlocksBuffer := make(map[int32]*Updates)
 	updatesBuffer := NewUpdatesBatch()
@@ -204,12 +202,3 @@ func (c *Connector) flushBuffer(buff *UpdatesBatch) error {
 
 	return nil
 }
-
-//func MergeUpdates(update1, update2 *Updates) {
-//	update1.Blocks.Height.Append(update2.Blocks.Height)
-//	update1.Blocks.Id.AppendArr(update2.Blocks.Id.)
-//	update1.Blocks.Timestamp.Append(update2.Blocks.Height)
-//	update1.Blocks.Height.Append(update2.Blocks.Height)
-//	update1.Blocks.Id.AppendArr(update2.Blocks.Id.)
-//	update1.Blocks.Timestamp.Append(update2.Blocks.Height)
-//}
