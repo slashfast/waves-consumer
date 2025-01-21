@@ -2,7 +2,7 @@ package clickhouse
 
 import (
 	"encoding/json"
-	"github.com/slashfast/wavesconsumer/v2/utils"
+	"github.com/slashfast/wavesconsumer/v2/pkg/utils"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"time"
 )

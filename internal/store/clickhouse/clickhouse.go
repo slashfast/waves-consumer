@@ -6,7 +6,7 @@ import (
 	"github.com/ClickHouse/ch-go"
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/rs/zerolog"
-	"github.com/slashfast/wavesconsumer/v2/store"
+	"github.com/slashfast/wavesconsumer/v2/internal/store"
 	"go.uber.org/fx"
 	"net/url"
 	"runtime"

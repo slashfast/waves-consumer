@@ -4,9 +4,11 @@ import (
 	"context"
 	fxzerolog "github.com/efectn/fx-zerolog"
 	"github.com/rs/zerolog"
-	"github.com/slashfast/wavesconsumer/v2/config"
-	"github.com/slashfast/wavesconsumer/v2/store"
-	"github.com/slashfast/wavesconsumer/v2/store/clickhouse"
+	"github.com/slashfast/wavesconsumer/v2/internal/config"
+	"github.com/slashfast/wavesconsumer/v2/internal/core/node"
+	"github.com/slashfast/wavesconsumer/v2/internal/core/updates"
+	"github.com/slashfast/wavesconsumer/v2/internal/store"
+	"github.com/slashfast/wavesconsumer/v2/internal/store/clickhouse"
 	"go.uber.org/fx"
 	"io"
 	"net/http"
@@ -19,16 +21,16 @@ import (
 type App struct {
 	ctx     context.Context
 	log     zerolog.Logger
-	updates *UpdatesApi
-	node    *NodeApi
+	updates *updates.Api
+	node    *node.Api
 	store   store.Connector
 }
 
 func NewApp(
 	ctx context.Context,
 	l *zerolog.Logger,
-	updates *UpdatesApi,
-	node *NodeApi,
+	updates *updates.Api,
+	node *node.Api,
 	store store.Connector,
 ) *App {
 	app := &App{ctx, l.With().Str("instance", "app").Logger(), updates, node, store}
@@ -43,7 +45,7 @@ func (app App) run() {
 	app.log.Info().Int32("from_height", dbHeight).Msg("Running")
 
 	startHeight := dbHeight + 1
-	updatesCh := make(store.UpdatesChannel, app.updates.config.UpdatesBufferSize())
+	updatesCh := make(store.UpdatesChannel, app.updates.Config.UpdatesBufferSize())
 	currentHeight := make(chan int32)
 
 	go app.node.PollCurrentHeight(currentHeight)
@@ -109,12 +111,12 @@ func main() {
 				clickhouse.NewConnector,
 				fx.As(new(store.Connector)),
 			),
-			NewUpdatesApi,
-			NewNodeApi,
+			updates.NewApi,
+			node.NewApi,
 			fx.Annotate(
 				config.LoadConfigFromEnv,
-				fx.As(new(NodeApiConfig)),
-				fx.As(new(UpdatesApiConfig)),
+				fx.As(new(node.ApiConfig)),
+				fx.As(new(updates.ApiConfig)),
 				fx.As(new(clickhouse.ConnectorConfig)),
 			),
 			NewLogger,

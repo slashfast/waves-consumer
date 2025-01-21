@@ -1,4 +1,4 @@
-package main
+package node
 
 import (
 	"context"
@@ -12,17 +12,17 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-type NodeApiConfig interface {
+type ApiConfig interface {
 	NodeApiAddress() string
 	IsNodeApiSecure() bool
 }
-type NodeApi struct {
+type Api struct {
 	ctx          context.Context
 	blocksClient node.BlocksApiClient
 	log          zerolog.Logger
 }
 
-func NewNodeApi(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, config NodeApiConfig) (*NodeApi, error) {
+func NewApi(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, config ApiConfig) (*Api, error) {
 	var creds credentials.TransportCredentials
 	if config.IsNodeApiSecure() {
 		creds = credentials.NewTLS(&tls.Config{})
@@ -69,38 +69,38 @@ func NewNodeApi(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, config 
 			return err
 		},
 	})
-	return &NodeApi{
+	return &Api{
 		ctx,
 		blocksClient,
 		l.With().Str("instance", "node_api").Logger(),
 	}, nil
 }
 
-func (n *NodeApi) getCurrentHeight() (int32, error) {
-	resp, err := n.blocksClient.GetCurrentHeight(n.ctx, &emptypb.Empty{})
+func (a *Api) getCurrentHeight() (int32, error) {
+	resp, err := a.blocksClient.GetCurrentHeight(a.ctx, &emptypb.Empty{})
 	if err != nil {
 		return 0, err
 	}
 	return int32(resp.Value), nil
 }
 
-func (n *NodeApi) GetCurrentHeight() int32 {
-	height, err := n.getCurrentHeight()
+func (a *Api) GetCurrentHeight() int32 {
+	height, err := a.getCurrentHeight()
 	if err != nil {
-		n.log.Error().Err(err).Msg("Failed to get current height")
+		a.log.Error().Err(err).Msg("Failed to get current height")
 		return height
 	}
 	return height
 }
 
-func (n *NodeApi) PollCurrentHeight(ch chan int32) {
-	logger := n.log.With().Str("worker", "height_poller").Logger()
+func (a *Api) PollCurrentHeight(ch chan int32) {
+	logger := a.log.With().Str("worker", "height_poller").Logger()
 	for {
 		select {
-		case <-n.ctx.Done():
+		case <-a.ctx.Done():
 			return
 		default:
-			height, err := n.getCurrentHeight()
+			height, err := a.getCurrentHeight()
 			if err == nil {
 				logger.Debug().Int32("current_height", height).Send()
 				ch <- height - 1

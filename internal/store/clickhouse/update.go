@@ -2,7 +2,7 @@ package clickhouse
 
 import (
 	"github.com/mr-tron/base58"
-	"github.com/slashfast/wavesconsumer/v2/utils"
+	"github.com/slashfast/wavesconsumer/v2/pkg/utils"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/events"
 	"github.com/wavesplatform/gowaves/pkg/proto"

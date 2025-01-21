@@ -1,10 +1,10 @@
-package main
+package updates
 
 import (
 	"context"
 	"crypto/tls"
 	"github.com/rs/zerolog"
-	"github.com/slashfast/wavesconsumer/v2/store"
+	"github.com/slashfast/wavesconsumer/v2/internal/store"
 	bu "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/events/grpc"
 	"go.uber.org/fx"
 	"google.golang.org/grpc"
@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-type UpdatesApiConfig interface {
+type ApiConfig interface {
 	UpdatesApiAddress() string
 	IsUpdatesApiSecure() bool
 	UpdatesBufferSize() int
@@ -25,19 +25,19 @@ type UpdatesApiConfig interface {
 	UpdatesAfterSyncDelay() time.Duration
 }
 
-type UpdatesApi struct {
+type Api struct {
 	ctx    context.Context
 	client bu.BlockchainUpdatesApiClient
 	log    zerolog.Logger
-	config UpdatesApiConfig
+	Config ApiConfig
 }
 
-func NewUpdatesApi(
+func NewApi(
 	ctx context.Context,
 	lc fx.Lifecycle,
 	l *zerolog.Logger,
-	config UpdatesApiConfig,
-) (*UpdatesApi, error) {
+	config ApiConfig,
+) (*Api, error) {
 	var creds credentials.TransportCredentials
 	if config.IsUpdatesApiSecure() {
 		creds = credentials.NewTLS(&tls.Config{})
@@ -89,7 +89,7 @@ func NewUpdatesApi(
 		},
 	})
 
-	return &UpdatesApi{
+	return &Api{
 		ctx,
 		client,
 		l.With().Str("instance", "updates_api").Logger(),
@@ -97,14 +97,14 @@ func NewUpdatesApi(
 	}, nil
 }
 
-func (u *UpdatesApi) runHeightBufferFiller(ch chan int32, start int32) {
+func (a *Api) runHeightBufferFiller(ch chan int32, start int32) {
 	defer close(ch)
 
 	current := start
 
 	for {
 		select {
-		case <-u.ctx.Done():
+		case <-a.ctx.Done():
 			return
 		case ch <- current:
 			current++
@@ -112,24 +112,24 @@ func (u *UpdatesApi) runHeightBufferFiller(ch chan int32, start int32) {
 	}
 }
 
-func (u *UpdatesApi) Consume(updatesCh store.UpdatesChannel, currentHeightCh chan int32, start int32) {
+func (a *Api) Consume(updatesCh store.UpdatesChannel, currentHeightCh chan int32, start int32) {
 	wg := sync.WaitGroup{}
 	defer func() {
 		wg.Wait()
 		close(updatesCh)
 	}()
 
-	sem := make(chan struct{}, u.config.UpdatesMaxWorkers())
+	sem := make(chan struct{}, a.Config.UpdatesMaxWorkers())
 	defer close(sem)
 
-	bufferSize := int32(u.config.UpdatesBufferSize())
-	afterSyncDelay := u.config.UpdatesAfterSyncDelay()
+	bufferSize := int32(a.Config.UpdatesBufferSize())
+	afterSyncDelay := a.Config.UpdatesAfterSyncDelay()
 
 	heightBuffer := make(chan int32, bufferSize)
-	go u.runHeightBufferFiller(heightBuffer, start)
+	go a.runHeightBufferFiller(heightBuffer, start)
 
 	targetHeight := <-currentHeightCh
-	logger := u.log.With().Str("worker", "consumer").Logger()
+	logger := a.log.With().Str("worker", "consumer").Logger()
 	logger.Info().Int32("target_height", targetHeight).Send()
 
 	var (
@@ -144,8 +144,8 @@ func (u *UpdatesApi) Consume(updatesCh store.UpdatesChannel, currentHeightCh cha
 		defer func() { <-sem }()
 		defer wg.Done()
 
-		resp, err := u.client.GetBlockUpdate(
-			u.ctx,
+		resp, err := a.client.GetBlockUpdate(
+			a.ctx,
 			&bu.GetBlockUpdateRequest{Height: height},
 		)
 
@@ -175,7 +175,7 @@ func (u *UpdatesApi) Consume(updatesCh store.UpdatesChannel, currentHeightCh cha
 		isQuietMode := !(heightDelta >= bufferSize)
 
 		select {
-		case <-u.ctx.Done():
+		case <-a.ctx.Done():
 			return
 		default:
 			if isQuietMode {
@@ -214,7 +214,7 @@ func (u *UpdatesApi) Consume(updatesCh store.UpdatesChannel, currentHeightCh cha
 		DelayLoop:
 			for {
 				select {
-				case <-u.ctx.Done():
+				case <-a.ctx.Done():
 					return
 				case <-time.After(afterSyncDelay):
 					break DelayLoop
