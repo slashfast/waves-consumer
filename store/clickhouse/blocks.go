@@ -418,6 +418,7 @@ func (t *Txs7OrderBatch) Append(txs *Txs7Order) {
 	t.Signature.AppendArr(txs.Signature)
 	t.Eip712Signature.AppendArr(txs.Eip712Signature)
 	t.PriceMode.AppendArr(txs.PriceMode)
+	t.Height.AppendArr(txs.Height)
 }
 
 type Txs8Batch struct {

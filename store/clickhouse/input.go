@@ -127,7 +127,7 @@ func NewUpdatesInput(updates *UpdatesBatch) UpdatesInput {
 			{"signature", &updates.Txs7Orders.Signature},
 			{"eip712_signature", &updates.Txs7Orders.Eip712Signature},
 			{"price_mode", &updates.Txs7Orders.PriceMode},
-			{"height", &updates.Txs7Orders.PriceMode},
+			{"height", &updates.Txs7Orders.Height},
 		},
 		"txs_8": append(
 			NewBaseTxInput(updates.Txs8.TxsBatch),
