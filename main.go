@@ -26,19 +26,12 @@ type App struct {
 
 func NewApp(
 	ctx context.Context,
-	lc fx.Lifecycle,
 	l *zerolog.Logger,
 	updates *UpdatesApi,
 	node *NodeApi,
 	store store.Connector,
 ) *App {
 	app := &App{ctx, l.With().Str("instance", "app").Logger(), updates, node, store}
-	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			go app.run()
-			return nil
-		},
-	})
 	return app
 }
 
@@ -127,7 +120,9 @@ func main() {
 			NewLogger,
 			NewContext,
 		),
-		fx.Invoke(func(a *App) {}),
+		fx.Invoke(func(app *App) {
+			app.run()
+		}),
 		fx.WithLogger(fxzerolog.InitPtr()),
 	).Run()
 }
