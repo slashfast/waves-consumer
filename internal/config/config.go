@@ -1,9 +1,10 @@
 package config
 
 import (
+	"time"
+
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
-	"time"
 )
 
 const (
@@ -70,11 +71,14 @@ func (c Config) StoreBufferSize() int32 {
 	return c.storeBufferSize
 }
 
-func NewConfig() Config {
-	v := viper.New()
-	v.AutomaticEnv()
-	v.SetConfigType("dotenv")
-	v.SetConfigFile(".env")
+func NewConfig(v *viper.Viper) Config {
+	if v == nil {
+		v = viper.New()
+		v.AutomaticEnv()
+		v.SetConfigType("dotenv")
+		v.SetConfigFile(".env")
+	}
+
 	err := v.ReadInConfig()
 	if err != nil {
 		panic(err)
@@ -103,7 +107,7 @@ func NewConfig() Config {
 func Provider(l *zerolog.Logger) (Config, error) {
 	logger := l.With().Str("instance", "config_parser").Logger()
 
-	cfg := NewConfig()
+	cfg := NewConfig(nil)
 
 	if cfg.nodeAddress == "" {
 		logger.Fatal().Msgf("%s is required", nodeAddress)
