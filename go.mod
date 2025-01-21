@@ -8,6 +8,7 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/rs/zerolog v1.33.0
 	github.com/spf13/viper v1.19.0
+	github.com/stretchr/testify v1.10.0
 	github.com/wavesplatform/gowaves v0.10.6
 	go.uber.org/fx v1.23.0
 	google.golang.org/grpc v1.67.0
@@ -21,6 +22,7 @@ require (
 	github.com/consensys/bavard v0.1.13 // indirect
 	github.com/consensys/gnark v0.8.0 // indirect
 	github.com/consensys/gnark-crypto v0.9.1 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
 	github.com/dmarkham/enumer v1.5.10 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
@@ -45,6 +47,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
