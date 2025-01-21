@@ -49,7 +49,7 @@ func (app App) run() {
 	currentHeight := make(chan int32)
 
 	go app.node.StartHeightPoller(currentHeight)
-	go app.updates.Consume(updatesCh, currentHeight, startHeight)
+	go app.updates.StartConsumer(updatesCh, currentHeight, startHeight)
 	go app.store.RunLoader(updatesCh, currentHeight, startHeight)
 
 	<-app.ctx.Done()
@@ -111,7 +111,7 @@ func main() {
 				clickhouse.NewConnector,
 				fx.As(new(store.Connector)),
 			),
-			updates.NewApi,
+			updates.Provider,
 			node.Provider,
 			fx.Annotate(
 				config.Provider,

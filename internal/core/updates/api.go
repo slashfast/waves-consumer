@@ -21,28 +21,21 @@ import (
 type Api struct {
 	ctx    context.Context
 	client bu.BlockchainUpdatesApiClient
+	conn   *grpc.ClientConn
 	log    zerolog.Logger
 	cfg    Config
 }
 
-func NewApi(
-	ctx context.Context,
-	lc fx.Lifecycle,
-	l *zerolog.Logger,
-	configProvider ConfigProvider,
-) (*Api, error) {
-	cfg := NewConfigFromProvider(configProvider)
-
+func NewApi(ctx context.Context, logger *zerolog.Logger, config Config) (*Api, error) {
 	var creds credentials.TransportCredentials
-
-	if cfg.Secure {
+	if config.Secure {
 		creds = credentials.NewTLS(&tls.Config{})
 	} else {
 		creds = insecure.NewCredentials()
 	}
 
 	conn, err := grpc.NewClient(
-		cfg.Address,
+		config.Address,
 		grpc.WithTransportCredentials(creds),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(8*1024*1024)),
 		grpc.WithDefaultServiceConfig(`{
@@ -64,33 +57,44 @@ func NewApi(
 	}
 
 	client := bu.NewBlockchainUpdatesApiClient(conn)
+	newLogger := logger.With().Str("instance", "updates_api").Logger()
+
+	return &Api{
+		ctx,
+		client,
+		conn,
+		newLogger,
+		config,
+	}, nil
+}
+
+func Provider(ctx context.Context, lc fx.Lifecycle, logger *zerolog.Logger, configProvider ConfigProvider) (*Api, error) {
+	cfg := NewConfigFromProvider(configProvider)
+	api, err := NewApi(ctx, logger, cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	lc.Append(fx.Hook{
 		OnStart: func(_ context.Context) error {
-			if _, err := client.GetBlockUpdate(
-				ctx,
-				&bu.GetBlockUpdateRequest{Height: 1},
-			); err != nil {
+			request := &bu.GetBlockUpdateRequest{Height: 1}
+			_, err := api.client.GetBlockUpdate(ctx, request)
+			if err != nil {
 				return err
 			}
-			l.Info().Msg("Updates GRPC probe is OK")
+			api.log.Info().Msg("Updates GRPC probe is OK")
 			return nil
 		},
 		OnStop: func(_ context.Context) error {
-			err := conn.Close()
+			err := api.Close()
 			if err != nil {
-				l.Info().Msg("Updates GRPC connection is closed")
+				api.log.Info().Msg("Updates GRPC connection is closed")
 			}
 			return err
 		},
 	})
 
-	return &Api{
-		ctx,
-		client,
-		l.With().Str("instance", "updates_api").Logger(),
-		cfg,
-	}, nil
+	return api, nil
 }
 
 func (a *Api) runHeightBufferFiller(ch chan int32, start int32) {
@@ -108,7 +112,7 @@ func (a *Api) runHeightBufferFiller(ch chan int32, start int32) {
 	}
 }
 
-func (a *Api) Consume(updatesCh store.UpdatesChannel, currentHeightCh chan int32, start int32) {
+func (a *Api) StartConsumer(updatesCh store.UpdatesChannel, currentHeightCh chan int32, start int32) {
 	wg := sync.WaitGroup{}
 	defer func() {
 		wg.Wait()
@@ -226,4 +230,8 @@ func (a *Api) Consume(updatesCh store.UpdatesChannel, currentHeightCh chan int32
 
 func (a *Api) NewUpdatesChannel() store.UpdatesChannel {
 	return make(store.UpdatesChannel, a.cfg.BufferSize)
+}
+
+func (a *Api) Close() error {
+	return a.conn.Close()
 }
