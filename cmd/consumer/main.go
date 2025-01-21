@@ -50,7 +50,7 @@ func (app App) run() {
 
 	go app.node.StartHeightPoller(currentHeight)
 	go app.updates.StartConsumer(updatesCh, currentHeight, startHeight)
-	go app.store.RunLoader(updatesCh, currentHeight, startHeight)
+	go app.store.StartLoader(updatesCh, currentHeight, startHeight)
 
 	<-app.ctx.Done()
 }

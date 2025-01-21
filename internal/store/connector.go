@@ -7,5 +7,5 @@ type UpdatesChannel chan Update
 
 type Connector interface {
 	Height() (int32, error)
-	RunLoader(UpdatesChannel, chan int32, int32)
+	StartLoader(UpdatesChannel, chan int32, int32)
 }

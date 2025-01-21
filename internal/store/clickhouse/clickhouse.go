@@ -87,7 +87,7 @@ func (c *Connector) Height() (int32, error) {
 	return maxHeightResult[0], nil
 }
 
-func (c *Connector) RunLoader(updatesCh store.UpdatesChannel, currentHeightCh chan int32, startHeight int32) {
+func (c *Connector) StartLoader(updatesCh store.UpdatesChannel, currentHeightCh chan int32, startHeight int32) {
 	wg := &sync.WaitGroup{}
 	defer wg.Wait()
 
