@@ -48,7 +48,7 @@ func (app App) run() {
 	updatesCh := app.updates.NewUpdatesChannel()
 	currentHeight := make(chan int32)
 
-	go app.node.PollCurrentHeight(currentHeight)
+	go app.node.StartHeightPoller(currentHeight)
 	go app.updates.Consume(updatesCh, currentHeight, startHeight)
 	go app.store.RunLoader(updatesCh, currentHeight, startHeight)
 
@@ -112,7 +112,7 @@ func main() {
 				fx.As(new(store.Connector)),
 			),
 			updates.NewApi,
-			node.NewApi,
+			node.Provider,
 			fx.Annotate(
 				config.Provider,
 				fx.As(new(node.ConfigProvider)),
