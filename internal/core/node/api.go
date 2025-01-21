@@ -106,7 +106,7 @@ func (a *Api) currentHeight() (int32, error) {
 	return int32(resp.Value), nil
 }
 
-func (a *Api) StartHeightPoller(ch chan int32) {
+func (a *Api) StartHeightPoller(output chan int32) {
 	logger := a.log.With().Str("worker", "height_poller").Logger()
 	for {
 		select {
@@ -116,7 +116,7 @@ func (a *Api) StartHeightPoller(ch chan int32) {
 			height, err := a.currentHeight()
 			if err == nil {
 				logger.Debug().Int32("current_height", height).Send()
-				ch <- height - 1
+				output <- height - 1
 			}
 		}
 	}
