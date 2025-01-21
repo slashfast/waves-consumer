@@ -1,5 +1,6 @@
 package updates
 
+import "C"
 import (
 	"context"
 	"crypto/tls"
@@ -17,36 +18,31 @@ import (
 	"time"
 )
 
-type ApiConfig interface {
-	UpdatesApiAddress() string
-	IsUpdatesApiSecure() bool
-	UpdatesBufferSize() int
-	UpdatesMaxWorkers() int
-	UpdatesAfterSyncDelay() time.Duration
-}
-
 type Api struct {
 	ctx    context.Context
 	client bu.BlockchainUpdatesApiClient
 	log    zerolog.Logger
-	Config ApiConfig
+	cfg    Config
 }
 
 func NewApi(
 	ctx context.Context,
 	lc fx.Lifecycle,
 	l *zerolog.Logger,
-	config ApiConfig,
+	configProvider ConfigProvider,
 ) (*Api, error) {
+	cfg := NewConfigFromProvider(configProvider)
+
 	var creds credentials.TransportCredentials
-	if config.IsUpdatesApiSecure() {
+
+	if cfg.Secure {
 		creds = credentials.NewTLS(&tls.Config{})
 	} else {
 		creds = insecure.NewCredentials()
 	}
 
 	conn, err := grpc.NewClient(
-		config.UpdatesApiAddress(),
+		cfg.Address,
 		grpc.WithTransportCredentials(creds),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(8*1024*1024)),
 		grpc.WithDefaultServiceConfig(`{
@@ -93,7 +89,7 @@ func NewApi(
 		ctx,
 		client,
 		l.With().Str("instance", "updates_api").Logger(),
-		config,
+		cfg,
 	}, nil
 }
 
@@ -119,11 +115,11 @@ func (a *Api) Consume(updatesCh store.UpdatesChannel, currentHeightCh chan int32
 		close(updatesCh)
 	}()
 
-	sem := make(chan struct{}, a.Config.UpdatesMaxWorkers())
+	sem := make(chan struct{}, a.cfg.MaxWorkers)
 	defer close(sem)
 
-	bufferSize := int32(a.Config.UpdatesBufferSize())
-	afterSyncDelay := a.Config.UpdatesAfterSyncDelay()
+	bufferSize := int32(a.cfg.BufferSize)
+	afterSyncDelay := a.cfg.AfterSyncDelay
 
 	heightBuffer := make(chan int32, bufferSize)
 	go a.runHeightBufferFiller(heightBuffer, start)
@@ -226,4 +222,8 @@ func (a *Api) Consume(updatesCh store.UpdatesChannel, currentHeightCh chan int32
 			targetHeight = <-currentHeightCh
 		}
 	}
+}
+
+func (a *Api) NewUpdatesChannel() store.UpdatesChannel {
+	return make(store.UpdatesChannel, a.cfg.BufferSize)
 }

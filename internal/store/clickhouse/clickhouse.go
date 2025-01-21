@@ -13,11 +13,6 @@ import (
 	"sync"
 )
 
-type ConnectorConfig interface {
-	StoreDsn() string
-	StoreBufferSize() int32
-}
-
 func dsnIntoOpts(dsn string) (*ch.Options, error) {
 	u, err := url.Parse(dsn)
 	if err != nil {
@@ -34,24 +29,21 @@ func dsnIntoOpts(dsn string) (*ch.Options, error) {
 	}, nil
 }
 
-type Config struct {
-	bufferSize int32
-}
-
 type Connector struct {
-	ctx    context.Context
-	conn   *ch.Client
-	log    zerolog.Logger
-	wg     *sync.WaitGroup
-	config Config
+	ctx  context.Context
+	conn *ch.Client
+	log  zerolog.Logger
+	wg   *sync.WaitGroup
+	cfg  Config
 }
 
-func NewConnector(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, config ConnectorConfig) (store.Connector, error) {
-	opts, err := dsnIntoOpts(config.StoreDsn())
-	opts.Compression = ch.CompressionDisabled
+func NewConnector(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, configProvider ConfigProvider) (store.Connector, error) {
+	cfg := NewConfigFromProvider(configProvider)
+	opts, err := dsnIntoOpts(cfg.Dsn)
 	if err != nil {
 		return nil, err
 	}
+	opts.Compression = ch.CompressionDisabled
 
 	conn, err := ch.Dial(context.Background(), *opts)
 	if err != nil {
@@ -70,11 +62,11 @@ func NewConnector(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, confi
 	})
 
 	return &Connector{
-		ctx:    ctx,
-		conn:   conn,
-		log:    l.With().Str("instance", "store").Logger(),
-		wg:     wg,
-		config: Config{config.StoreBufferSize()},
+		ctx:  ctx,
+		conn: conn,
+		log:  l.With().Str("instance", "store").Logger(),
+		wg:   wg,
+		cfg:  cfg,
 	}, nil
 }
 
@@ -134,7 +126,7 @@ func (c *Connector) runParser(parsedBlocksCh chan *Updates, currentHeightCh chan
 	storeHeight := startHeight
 	expectedHeight := storeHeight
 	isQuietMode := false
-	buffCap := c.config.bufferSize
+	buffCap := c.cfg.BufferSize
 
 	parsedBlocksBuffer := make(map[int32]*Updates)
 	updatesBuffer := NewUpdatesBatch()

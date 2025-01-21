@@ -45,7 +45,7 @@ func (app App) run() {
 	app.log.Info().Int32("from_height", dbHeight).Msg("Running")
 
 	startHeight := dbHeight + 1
-	updatesCh := make(store.UpdatesChannel, app.updates.Config.UpdatesBufferSize())
+	updatesCh := app.updates.NewUpdatesChannel()
 	currentHeight := make(chan int32)
 
 	go app.node.PollCurrentHeight(currentHeight)
@@ -114,10 +114,10 @@ func main() {
 			updates.NewApi,
 			node.NewApi,
 			fx.Annotate(
-				config.LoadConfigFromEnv,
-				fx.As(new(node.ApiConfig)),
-				fx.As(new(updates.ApiConfig)),
-				fx.As(new(clickhouse.ConnectorConfig)),
+				config.Provider,
+				fx.As(new(node.ConfigProvider)),
+				fx.As(new(updates.ConfigProvider)),
+				fx.As(new(clickhouse.ConfigProvider)),
 			),
 			NewLogger,
 			NewContext,

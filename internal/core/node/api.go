@@ -12,25 +12,25 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-type ApiConfig interface {
-	NodeApiAddress() string
-	IsNodeApiSecure() bool
-}
 type Api struct {
 	ctx          context.Context
 	blocksClient node.BlocksApiClient
 	log          zerolog.Logger
+	cfg          Config
 }
 
-func NewApi(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, config ApiConfig) (*Api, error) {
+func NewApi(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, configProvider ConfigProvider) (*Api, error) {
+	cfg := NewConfigFromProvider(configProvider)
 	var creds credentials.TransportCredentials
-	if config.IsNodeApiSecure() {
+
+	if cfg.Secure {
 		creds = credentials.NewTLS(&tls.Config{})
 	} else {
 		creds = insecure.NewCredentials()
 	}
+
 	conn, err := grpc.NewClient(
-		config.NodeApiAddress(),
+		cfg.Address,
 		grpc.WithTransportCredentials(creds),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(8*1024*1024)),
 		grpc.WithDefaultServiceConfig(`{
@@ -73,6 +73,7 @@ func NewApi(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, config ApiC
 		ctx,
 		blocksClient,
 		l.With().Str("instance", "node_api").Logger(),
+		cfg,
 	}, nil
 }
 

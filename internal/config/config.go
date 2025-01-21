@@ -1,54 +1,66 @@
 package config
 
 import (
-	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-	"os"
-	"strconv"
-	"strings"
+	"github.com/spf13/viper"
 	"time"
 )
 
-type Config struct {
-	nodeApiAddress  string
-	nodeIsApiSecure bool
+const (
+	nodeAddress = "NODE_ADDRESS"
+	nodeSecure  = "NODE_SECURE"
 
-	updatesApiAddress     string
-	updatesIsApiSecure    bool
-	updatesBufferSize     int
-	updatesMaxWorkers     int
+	updatesAddress        = "UPDATES_ADDRESS"
+	updatesSecure         = "UPDATES_SECURE"
+	updatesBufferSize     = "UPDATES_BUFFER_SIZE"
+	updatesMaxWorkers     = "UPDATES_MAX_WORKERS"
+	updatesAfterSyncDelay = "UPDATES_AFTER_SYNC_DELAY"
+
+	storeDsn        = "STORE_DSN"
+	storeBufferSize = "STORE_BUFFER_SIZE"
+)
+
+type Config struct {
+	nodeAddress string
+	nodeSecure  bool
+
+	updatesAddress        string
+	updatesSecure         bool
+	updatesBufferSize     int32
+	updatesMaxWorkers     int32
 	updatesAfterSyncDelay time.Duration
 
 	storeDsn        string
 	storeBufferSize int32
 }
 
-func (c Config) NodeApiAddress() string {
-	return c.nodeApiAddress
+func (c Config) NodeAddress() string {
+	return c.nodeAddress
 }
 
-func (c Config) IsNodeApiSecure() bool {
-	return c.nodeIsApiSecure
+func (c Config) NodeSecure() bool {
+	return c.nodeSecure
 }
 
-func (c Config) UpdatesApiAddress() string {
-	return c.updatesApiAddress
+func (c Config) UpdatesAddress() string {
+	return c.updatesAddress
 }
 
-func (c Config) IsUpdatesApiSecure() bool {
-	return c.updatesIsApiSecure
+func (c Config) UpdatesSecure() bool {
+	return c.updatesSecure
 }
 
-func (c Config) UpdatesBufferSize() int {
+func (c Config) UpdatesBufferSize() int32 {
 	return c.updatesBufferSize
 }
 
-func (c Config) UpdatesMaxWorkers() int {
+func (c Config) UpdatesMaxWorkers() int32 {
 	return c.updatesMaxWorkers
 }
 
-func (c Config) UpdatesAfterSyncDelay() time.Duration { return c.updatesAfterSyncDelay }
+func (c Config) UpdatesAfterSyncDelay() time.Duration {
+	return c.updatesAfterSyncDelay
+}
 
 func (c Config) StoreDsn() string {
 	return c.storeDsn
@@ -58,92 +70,50 @@ func (c Config) StoreBufferSize() int32 {
 	return c.storeBufferSize
 }
 
-type EnvParser struct {
-	log *zerolog.Logger
-}
-
-func NewEnvParser(logger *zerolog.Logger) *EnvParser {
-	if logger == nil {
-		logger = &log.Logger
-	}
-	return &EnvParser{logger}
-}
-
-func (c EnvParser) parseBool(val string) bool {
-	switch strings.ToLower(val) {
-	case "true":
-		return true
-	case "false":
-		return false
-	default:
-		c.log.Fatal().Msgf("failed to parse a '%s' value as bool", val)
-		return false
-	}
-}
-
-func (c EnvParser) parseInt(val string) int {
-	n, err := strconv.Atoi(val)
+func NewConfig() Config {
+	v := viper.New()
+	v.AutomaticEnv()
+	v.SetConfigType("dotenv")
+	v.SetConfigFile(".env")
+	err := v.ReadInConfig()
 	if err != nil {
-		c.log.Fatal().Err(err).Msgf("failed to parse a '%s' value as int", val)
+		panic(err)
 	}
-	return n
+
+	v.SetDefault(nodeSecure, true)
+	v.SetDefault(updatesSecure, true)
+	v.SetDefault(updatesBufferSize, 1000)
+	v.SetDefault(updatesMaxWorkers, 1024)
+	v.SetDefault(updatesAfterSyncDelay, "1m")
+	v.SetDefault(storeBufferSize, 1000)
+
+	return Config{
+		nodeAddress:           v.GetString(nodeAddress),
+		nodeSecure:            v.GetBool(nodeSecure),
+		updatesAddress:        v.GetString(updatesAddress),
+		updatesSecure:         v.GetBool(updatesSecure),
+		updatesBufferSize:     v.GetInt32(updatesBufferSize),
+		updatesMaxWorkers:     v.GetInt32(updatesMaxWorkers),
+		updatesAfterSyncDelay: v.GetDuration(updatesAfterSyncDelay),
+		storeDsn:              v.GetString(storeDsn),
+		storeBufferSize:       v.GetInt32(storeBufferSize),
+	}
 }
 
-func (c EnvParser) parseInt32(val string) int32 {
-	n, err := strconv.ParseInt(val, 10, 0)
-	if err != nil {
-		c.log.Fatal().Err(err).Msgf("failed to parse a '%s' value as int32", val)
-	}
-	return int32(n)
-}
-
-func (c EnvParser) parseDuration(val string) time.Duration {
-	d, err := time.ParseDuration(val)
-	if err != nil {
-		c.log.Fatal().Err(err).Msgf("failed to parse a '%s' value as duration", val)
-	}
-	return d
-}
-
-func (c EnvParser) get(key string, fallback any, required bool) any {
-	if value, ok := os.LookupEnv(key); ok {
-		switch fallback.(type) {
-		case string:
-			return any(value)
-		case bool:
-			return c.parseBool(value)
-		case int:
-			return c.parseInt(value)
-		case int32:
-			return c.parseInt32(value)
-		case time.Duration:
-			return c.parseDuration(value)
-		}
-	} else if required {
-		c.log.Fatal().Msg(key + " is required")
-	}
-	return fallback
-}
-
-func LoadConfigFromEnv(l *zerolog.Logger) (*Config, error) {
+func Provider(l *zerolog.Logger) (Config, error) {
 	logger := l.With().Str("instance", "config_parser").Logger()
-	if godotenv.Load() != nil {
-		logger.Info().Msg("The dotenv file is missing")
+
+	cfg := NewConfig()
+
+	if cfg.nodeAddress == "" {
+		logger.Fatal().Msgf("%s is required", nodeAddress)
+	}
+	if cfg.updatesAddress == "" {
+		logger.Fatal().Msgf("%s is required", updatesAddress)
+	}
+	if cfg.storeDsn == "" {
+		logger.Fatal().Msgf("%s is required", storeDsn)
 	}
 
-	p := NewEnvParser(&logger)
-
-	return &Config{
-		nodeApiAddress:  p.get("NODE_API_ADDRESS", "", true).(string),
-		nodeIsApiSecure: p.get("NODE_API_SECURE", true, false).(bool),
-
-		updatesApiAddress:     p.get("UPDATES_API_ADDRESS", "", true).(string),
-		updatesIsApiSecure:    p.get("UPDATES_API_SECURE", true, false).(bool),
-		updatesBufferSize:     p.get("UPDATES_BUFFER_SIZE", 1000, false).(int),
-		updatesMaxWorkers:     p.get("UPDATES_MAX_WORKERS", 256*4, false).(int),
-		updatesAfterSyncDelay: p.get("UPDATES_AFTER_SYNC_DELAY", time.Minute, false).(time.Duration),
-
-		storeDsn:        p.get("STORE_DSN", "", true).(string),
-		storeBufferSize: p.get("STORE_BUFFER_SIZE", int32(1000), false).(int32),
-	}, nil
+	return cfg, nil
 }
