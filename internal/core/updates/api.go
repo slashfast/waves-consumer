@@ -14,8 +14,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"sync"
-	"sync/atomic"
-	"time"
 )
 
 type Api struct {
@@ -112,35 +110,19 @@ func (a *Api) runHeightBufferFiller(ch chan int32, start int32) {
 	}
 }
 
-func (a *Api) StartConsumer(updatesCh store.UpdatesChannel, currentHeightCh chan int32, start int32) {
+func (a *Api) StartConsumer(outputCh store.UpdatesChannel, currentHeightCh chan int32) {
 	wg := sync.WaitGroup{}
 	defer func() {
 		wg.Wait()
-		close(updatesCh)
+		close(outputCh)
 	}()
 
 	sem := make(chan struct{}, a.cfg.MaxWorkers)
 	defer close(sem)
 
-	bufferSize := int32(a.cfg.BufferSize)
-	afterSyncDelay := a.cfg.AfterSyncDelay
-
-	heightBuffer := make(chan int32, bufferSize)
-	go a.runHeightBufferFiller(heightBuffer, start)
-
-	targetHeight := <-currentHeightCh
 	logger := a.log.With().Str("worker", "consumer").Logger()
-	logger.Info().Int32("target_height", targetHeight).Send()
-
-	var (
-		previousConsumerHeight,
-		currentConsumerHeight int32
-		consumerHeight atomic.Int32
-	)
-	consumerHeight.Store(start)
 
 	worker := func(height int32) {
-		wg.Add(1)
 		defer func() { <-sem }()
 		defer wg.Done()
 
@@ -150,10 +132,7 @@ func (a *Api) StartConsumer(updatesCh store.UpdatesChannel, currentHeightCh chan
 		)
 
 		if err == nil {
-			updatesCh <- resp.Update
-			if consumerHeight.Load() < height {
-				consumerHeight.Store(height)
-			}
+			outputCh <- resp.Update
 		} else {
 			st, ok := status.FromError(err)
 			if ok {
@@ -171,59 +150,13 @@ func (a *Api) StartConsumer(updatesCh store.UpdatesChannel, currentHeightCh chan
 	}
 
 	for {
-		heightDelta := targetHeight - currentConsumerHeight
-		isQuietMode := !(heightDelta >= bufferSize)
-
 		select {
 		case <-a.ctx.Done():
 			return
-		default:
-			if isQuietMode {
-				logger.Info().
-					Int32("target_height", targetHeight).
-					Int32("previous_height", previousConsumerHeight).
-					Int32("current_height", currentConsumerHeight).
-					Int32("height_delta", heightDelta).
-					Send()
-				h := currentConsumerHeight
-				for range heightDelta {
-					h++
-					sem <- struct{}{}
-					worker(h)
-					logger.Info().Int32("consumed_height", h).Send()
-				}
-			} else {
-				sem <- struct{}{}
-				go worker(<-heightBuffer)
-			}
-		}
-
-		previousConsumerHeight = currentConsumerHeight
-		currentConsumerHeight = consumerHeight.Load()
-
-		if !isQuietMode &&
-			previousConsumerHeight < currentConsumerHeight &&
-			currentConsumerHeight%bufferSize == 0 {
-			logger.Info().
-				Int32("consumed_height", currentConsumerHeight).
-				Send()
-		}
-
-		if heightDelta == 0 {
-			logger.Info().Msg("Synced")
-		DelayLoop:
-			for {
-				select {
-				case <-a.ctx.Done():
-					return
-				case <-time.After(afterSyncDelay):
-					break DelayLoop
-				}
-			}
-		}
-
-		if isQuietMode {
-			targetHeight = <-currentHeightCh
+		case height := <-currentHeightCh:
+			sem <- struct{}{}
+			wg.Add(1)
+			go worker(height)
 		}
 	}
 }

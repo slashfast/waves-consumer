@@ -100,12 +100,13 @@ func (c *Connector) StartLoader(updatesCh store.UpdatesChannel, currentHeightCh 
 	defer close(sem)
 
 	worker := func(update store.Update) {
-		wg.Add(1)
 		defer func() { <-sem }()
 		defer wg.Done()
 		parsedUpdate, err := c.parseUpdate(update)
 		if err != nil {
 			c.log.Fatal().Err(err).Msg("failed to parse update")
+		} else {
+			c.log.Trace().Int32("height", parsedUpdate.Blocks.Height[0]).Msg("parsed")
 		}
 		parsedCh <- parsedUpdate
 	}
@@ -116,6 +117,7 @@ func (c *Connector) StartLoader(updatesCh store.UpdatesChannel, currentHeightCh 
 			return
 		case update := <-updatesCh:
 			sem <- struct{}{}
+			wg.Add(1)
 			go worker(update)
 		}
 	}
@@ -125,7 +127,6 @@ func (c *Connector) runParser(parsedBlocksCh chan *Updates, currentHeightCh chan
 	targetHeight := <-currentHeightCh
 	storeHeight := startHeight
 	expectedHeight := storeHeight
-	isQuietMode := false
 	buffCap := c.cfg.BufferSize
 
 	parsedBlocksBuffer := make(map[int32]*Updates)
@@ -136,27 +137,27 @@ func (c *Connector) runParser(parsedBlocksCh chan *Updates, currentHeightCh chan
 		case <-c.ctx.Done():
 			return
 		case update := <-parsedBlocksCh:
-			parsedBlocksBuffer[update.Blocks.Height[0]] = update
-
+			height := update.Blocks.Height[0]
+			parsedBlocksBuffer[height] = update
+		default:
 			if update, exists := parsedBlocksBuffer[expectedHeight]; exists {
 				updatesBuffer.Append(update)
+				c.log.Trace().Int32("height", expectedHeight).Msg("appended to buffer")
 				delete(parsedBlocksBuffer, expectedHeight)
 				expectedHeight++
 			}
 
 			heightDelta := targetHeight - storeHeight
-			if !isQuietMode {
-				isQuietMode = heightDelta <= buffCap
-			}
 
-			if isQuietMode {
+			if heightDelta <= 0 {
+				buffCap = 1
+			} else if heightDelta <= buffCap {
 				buffCap = heightDelta
 			}
 
-			buffLen := len(updatesBuffer.Blocks.Height)
-			isNeedToFlush := int32(buffLen) == buffCap
+			buffLen := int32(len(updatesBuffer.Blocks.Height))
 
-			if isNeedToFlush {
+			if buffLen == buffCap {
 				err := c.flushBuffer(updatesBuffer)
 				if err != nil {
 					c.log.Fatal().Err(err).Msg("failed to flush buffer")
@@ -170,6 +171,9 @@ func (c *Connector) runParser(parsedBlocksCh chan *Updates, currentHeightCh chan
 func (c *Connector) flushBuffer(buff *UpdatesBatch) error {
 	c.wg.Add(1)
 	defer c.wg.Done()
+	startHeight := buff.Blocks.Height[0]
+	endHeight := buff.Blocks.Height[len(buff.Blocks.Height)-1]
+	buffLen := len(buff.Blocks.Height)
 	inputs := NewUpdatesInput(buff)
 
 	for table, input := range inputs {
@@ -187,7 +191,10 @@ func (c *Connector) flushBuffer(buff *UpdatesBatch) error {
 	}
 
 	*buff = *NewUpdatesBatch()
-	c.log.Debug().Msg("buffer flushed")
+	c.log.Info().
+		Int32("from", startHeight).
+		Int32("to", endHeight).
+		Msgf("%d block(s) flushed from buffer", buffLen)
 
 	return nil
 }

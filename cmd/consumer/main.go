@@ -2,6 +2,13 @@ package main
 
 import (
 	"context"
+	"io"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"strings"
+	"time"
+
 	fxzerolog "github.com/efectn/fx-zerolog"
 	"github.com/rs/zerolog"
 	"github.com/slashfast/wavesconsumer/v2/internal/config"
@@ -10,12 +17,6 @@ import (
 	"github.com/slashfast/wavesconsumer/v2/internal/store"
 	"github.com/slashfast/wavesconsumer/v2/internal/store/clickhouse"
 	"go.uber.org/fx"
-	"io"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
-	"strings"
-	"time"
 )
 
 type App struct {
@@ -47,9 +48,11 @@ func (app App) run() {
 	startHeight := dbHeight + 1
 	updatesCh := app.updates.NewUpdatesChannel()
 	currentHeight := make(chan int32)
+	heightProviderCh := make(chan int32)
 
 	go app.node.StartHeightPoller(currentHeight)
-	go app.updates.StartConsumer(updatesCh, currentHeight, startHeight)
+	go app.node.StartHeightProvider(heightProviderCh, startHeight)
+	go app.updates.StartConsumer(updatesCh, heightProviderCh)
 	go app.store.StartLoader(updatesCh, currentHeight, startHeight)
 
 	<-app.ctx.Done()
