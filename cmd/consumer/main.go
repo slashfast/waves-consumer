@@ -95,7 +95,11 @@ func NewContext(lc fx.Lifecycle) context.Context {
 }
 
 func main() {
-	if strings.ToLower(os.Getenv("DEBUG")) == "true" {
+	traceMode := strings.ToLower(os.Getenv("TRACE")) == "true"
+	debugMode := strings.ToLower(os.Getenv("DEBUG")) == "true"
+	enableProfiler := traceMode || debugMode
+
+	if enableProfiler {
 		go func() {
 			err := http.ListenAndServe("localhost:6060", nil)
 			if err != nil {
@@ -107,6 +111,13 @@ func main() {
 	fx.New(
 		fx.Invoke(func() {
 			zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+			if traceMode {
+				zerolog.SetGlobalLevel(zerolog.TraceLevel)
+			} else if debugMode {
+				zerolog.SetGlobalLevel(zerolog.DebugLevel)
+			} else {
+				zerolog.SetGlobalLevel(zerolog.InfoLevel)
+			}
 		}),
 		fx.Provide(
 			NewApp,

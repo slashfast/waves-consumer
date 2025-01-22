@@ -171,9 +171,9 @@ func (c *Connector) runParser(parsedBlocksCh chan *Updates, currentHeightCh chan
 func (c *Connector) flushBuffer(buff *UpdatesBatch) error {
 	c.wg.Add(1)
 	defer c.wg.Done()
-	startHeight := buff.Blocks.Height[0]
-	endHeight := buff.Blocks.Height[len(buff.Blocks.Height)-1]
 	buffLen := len(buff.Blocks.Height)
+	startHeight := buff.Blocks.Height[0]
+	endHeight := buff.Blocks.Height[buffLen-1]
 	inputs := NewUpdatesInput(buff)
 
 	for table, input := range inputs {
