@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"time"
 )
 
 type Api struct {
@@ -117,6 +118,53 @@ func (a *Api) StartHeightPoller(output chan int32) {
 			if err == nil {
 				logger.Debug().Int32("current_height", height).Send()
 				output <- height - 1
+			}
+		}
+	}
+}
+
+func (a *Api) StartHeightProvider(outputCh chan int32, start int32) {
+	logger := a.log.With().Str("worker", "height_consumer").Logger()
+
+	currentHeight := a.CurrentHeight()
+	accumulatorHeight := start
+
+	for {
+		select {
+		case <-a.ctx.Done():
+			return
+		default:
+			delta := currentHeight - accumulatorHeight
+
+			if delta != 0 {
+				logger.Trace().
+					Int32("current", currentHeight).
+					Int32("accumulator", accumulatorHeight).
+					Int32("delta", delta).
+					Msg("sending block height")
+
+				outputCh <- accumulatorHeight
+				accumulatorHeight++
+				continue
+			}
+
+			// checks if there are new blocks
+			currentHeight = a.CurrentHeight()
+			delta = currentHeight - accumulatorHeight
+
+			if delta != 0 {
+				continue
+			}
+
+			logger.Debug().
+				Int32("current_height", currentHeight).
+				Msg("No new blocks, waiting")
+
+			// wait for a minute or context cancellation
+			select {
+			case <-time.After(a.cfg.NewHeightDelay):
+			case <-a.ctx.Done():
+				return
 			}
 		}
 	}

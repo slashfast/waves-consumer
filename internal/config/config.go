@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	nodeAddress = "NODE_ADDRESS"
-	nodeSecure  = "NODE_SECURE"
+	nodeAddress        = "NODE_ADDRESS"
+	nodeSecure         = "NODE_SECURE"
+	nodeNewHeightDelay = "NODE_NEW_HEIGHT_DELAY"
 
 	updatesAddress        = "UPDATES_ADDRESS"
 	updatesSecure         = "UPDATES_SECURE"
@@ -22,8 +23,9 @@ const (
 )
 
 type Config struct {
-	nodeAddress string
-	nodeSecure  bool
+	nodeAddress        string
+	nodeSecure         bool
+	nodeNewHeightDelay time.Duration
 
 	updatesAddress        string
 	updatesSecure         bool
@@ -41,6 +43,10 @@ func (c Config) NodeAddress() string {
 
 func (c Config) NodeSecure() bool {
 	return c.nodeSecure
+}
+
+func (c Config) NodeNewHeightDelay() time.Duration {
+	return c.nodeNewHeightDelay
 }
 
 func (c Config) UpdatesAddress() string {
@@ -85,6 +91,7 @@ func NewConfig(v *viper.Viper) Config {
 	}
 
 	v.SetDefault(nodeSecure, true)
+	v.SetDefault(nodeNewHeightDelay, "1m")
 	v.SetDefault(updatesSecure, true)
 	v.SetDefault(updatesBufferSize, 1000)
 	v.SetDefault(updatesMaxWorkers, 1024)
@@ -94,6 +101,7 @@ func NewConfig(v *viper.Viper) Config {
 	return Config{
 		nodeAddress:           v.GetString(nodeAddress),
 		nodeSecure:            v.GetBool(nodeSecure),
+		nodeNewHeightDelay:    v.GetDuration(nodeNewHeightDelay),
 		updatesAddress:        v.GetString(updatesAddress),
 		updatesSecure:         v.GetBool(updatesSecure),
 		updatesBufferSize:     v.GetInt32(updatesBufferSize),
