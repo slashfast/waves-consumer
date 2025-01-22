@@ -81,14 +81,10 @@ func NewConfig(v *viper.Viper) Config {
 	if v == nil {
 		v = viper.New()
 		v.AutomaticEnv()
-		v.SetConfigType("dotenv")
 		v.SetConfigFile(".env")
 	}
 
-	err := v.ReadInConfig()
-	if err != nil {
-		panic(err)
-	}
+	_ = v.ReadInConfig()
 
 	v.SetDefault(nodeSecure, true)
 	v.SetDefault(nodeNewHeightDelay, "1m")
