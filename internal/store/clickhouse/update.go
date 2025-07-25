@@ -1,12 +1,13 @@
 package clickhouse
 
 import (
+	"time"
+
 	"github.com/mr-tron/base58"
 	"github.com/slashfast/wavesconsumer/v2/pkg/utils"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/events"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"time"
 )
 
 func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates, error) {
@@ -365,6 +366,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 	}
 
 	balances := updates.Balances
+	dataStorage := updates.DataStorage
 
 	for i, su := range txsStateUpdates {
 		for _, bu := range su.Balances {
@@ -377,6 +379,31 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 			balances.TxUid = append(balances.TxUid, txUids[i])
 			balances.TxId = append(balances.TxId, txIds[i])
 			balances.Height = append(balances.Height, height)
+		}
+		for _, deu := range su.DataEntries {
+			de := deu.DataEntry
+			dataType := ""
+			switch de.Value.(type) {
+			case *waves.DataTransactionData_DataEntry_IntValue:
+				dataType = "integer"
+			case *waves.DataTransactionData_DataEntry_BoolValue:
+				dataType = "boolean"
+			case *waves.DataTransactionData_DataEntry_BinaryValue:
+				dataType = "binary"
+			case *waves.DataTransactionData_DataEntry_StringValue:
+				dataType = "string"
+			}
+
+			dataStorage.Address = append(dataStorage.Address, base58.Encode(deu.Address))
+			dataStorage.DataKey = append(dataStorage.DataKey, utils.EscapeUnicodeNull(de.Key))
+			dataStorage.DataType = append(dataStorage.DataType, dataType)
+			dataStorage.DataValueInteger = append(dataStorage.DataValueInteger, de.GetIntValue())
+			dataStorage.DataValueBoolean = append(dataStorage.DataValueBoolean, de.GetBoolValue())
+			dataStorage.DataValueBinary = append(dataStorage.DataValueBinary, utils.ToBase64(de.GetBinaryValue()))
+			dataStorage.DataValueString = append(dataStorage.DataValueString, de.GetStringValue())
+			dataStorage.TxUid = append(dataStorage.TxUid, txUids[i])
+			dataStorage.TxId = append(dataStorage.TxId, txIds[i])
+			dataStorage.Height = append(dataStorage.Height, height)
 		}
 	}
 

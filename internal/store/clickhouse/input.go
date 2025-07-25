@@ -215,5 +215,17 @@ func NewUpdatesInput(updates *UpdatesBatch) UpdatesInput {
 			{"tx_id", &updates.Balances.TxId},
 			{"height", &updates.Balances.Height},
 		},
+		"data_storage": {
+			{"address", &updates.DataStorage.Address},
+			{"data_key", &updates.DataStorage.DataKey},
+			{"data_type", &updates.DataStorage.DataType},
+			{"data_value_integer", &updates.DataStorage.DataValueInteger},
+			{"data_value_bool", &updates.DataStorage.DataValueBoolean},
+			{"data_value_binary", &updates.DataStorage.DataValueBinary},
+			{"data_value_string", &updates.DataStorage.DataValueString},
+			{"tx_uid", &updates.DataStorage.TxUid},
+			{"tx_id", &updates.DataStorage.TxId},
+			{"height", &updates.DataStorage.Height},
+		},
 	}
 }

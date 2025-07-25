@@ -32,6 +32,7 @@ type UpdatesBatch struct {
 	Txs18Args      *TxsArgsBatch
 	Txs18Payments  *TxsPaymentsBatch
 	Balances       *BalanceBatch
+	DataStorage    *DataStorageBatch
 }
 
 func NewUpdatesBatch() *UpdatesBatch {
@@ -63,6 +64,7 @@ func NewUpdatesBatch() *UpdatesBatch {
 		NewTxsArgsBatch(),
 		NewTxsPaymentsBatch(),
 		NewBalanceBatch(),
+		NewDataStorageBatch(),
 	}
 }
 
@@ -97,6 +99,7 @@ func (u *UpdatesBatch) Append(updates *Updates) {
 	u.Txs18Args.Append(updates.Txs18Args)
 	u.Txs18Payments.Append(updates.Txs18Payments)
 	u.Balances.Append(updates.Balances)
+	u.DataStorage.Append(updates.DataStorage)
 }
 
 //func (u)
@@ -811,4 +814,45 @@ func (b *BalanceBatch) Append(balance *Balance) {
 	b.TxUid.AppendArr(balance.TxUid)
 	b.TxId.AppendArr(balance.TxId)
 	b.Height.AppendArr(balance.Height)
+}
+
+type DataStorageBatch struct {
+	Address          proto.ColStr
+	DataKey          proto.ColStr
+	DataType         proto.ColStr
+	DataValueInteger proto.ColInt64
+	DataValueBoolean proto.ColBool
+	DataValueBinary  proto.ColStr
+	DataValueString  proto.ColStr
+	TxUid            proto.ColInt64
+	TxId             proto.ColStr
+	Height           proto.ColInt32
+}
+
+func NewDataStorageBatch() *DataStorageBatch {
+	return &DataStorageBatch{
+		proto.ColStr{},
+		proto.ColStr{},
+		proto.ColStr{},
+		proto.ColInt64{},
+		proto.ColBool{},
+		proto.ColStr{},
+		proto.ColStr{},
+		proto.ColInt64{},
+		proto.ColStr{},
+		proto.ColInt32{},
+	}
+}
+
+func (d *DataStorageBatch) Append(dataStorage *DataStorage) {
+	d.Address.AppendArr(dataStorage.Address)
+	d.DataKey.AppendArr(dataStorage.DataKey)
+	d.DataType.AppendArr(dataStorage.DataType)
+	d.DataValueInteger.AppendArr(dataStorage.DataValueInteger)
+	d.DataValueBoolean.AppendArr(dataStorage.DataValueBoolean)
+	d.DataValueBinary.AppendArr(dataStorage.DataValueBinary)
+	d.DataValueString.AppendArr(dataStorage.DataValueString)
+	d.TxUid.AppendArr(dataStorage.TxUid)
+	d.TxId.AppendArr(dataStorage.TxId)
+	d.Height.AppendArr(dataStorage.Height)
 }
