@@ -2,9 +2,10 @@ package clickhouse
 
 import (
 	"encoding/json"
+	"time"
+
 	"github.com/slashfast/wavesconsumer/v2/pkg/utils"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
-	"time"
 )
 
 const (
@@ -39,6 +40,7 @@ type Updates struct {
 	Txs18Args      *TxsArgs
 	Txs18Payments  *TxsPayments
 	Balances       *Balance
+	DataStorage    *DataStorage
 }
 
 func NewUpdates() *Updates {
@@ -70,6 +72,7 @@ func NewUpdates() *Updates {
 		NewTxsArgs(),
 		NewTxsPayments(),
 		NewBalance(),
+		NewDataStorage(),
 	}
 }
 
@@ -608,6 +611,34 @@ func NewBalance() *Balance {
 		[]string{},
 		[]int64{},
 		[]int64{},
+		[]int64{},
+		[]string{},
+		[]int32{},
+	}
+}
+
+type DataStorage struct {
+	Address          []string
+	DataKey          []string
+	DataType         []string
+	DataValueInteger []int64
+	DataValueBoolean []bool
+	DataValueBinary  []string
+	DataValueString  []string
+	TxUid            []int64
+	TxId             []string
+	Height           []int32
+}
+
+func NewDataStorage() *DataStorage {
+	return &DataStorage{
+		[]string{},
+		[]string{},
+		[]string{},
+		[]int64{},
+		[]bool{},
+		[]string{},
+		[]string{},
 		[]int64{},
 		[]string{},
 		[]int32{},
