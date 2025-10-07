@@ -1,0 +1,226 @@
+# golangci-lint configuration
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    # Базовые проверки
+    - errcheck # Проверка необработанных ошибок
+    - gosimple # Упрощение кода
+    - govet # Vet examines Go source code (включает fieldalignment)
+    - ineffassign # Обнаружение неиспользуемых присваиваний
+    - staticcheck # Статический анализ
+    - unused # Неиспользуемый код
+
+    # Форматирование и стиль
+    - gofmt # Форматирование
+    - goimports # Импорты
+    - gci # Упорядочивание импортов
+    - misspell # Проверка опечаток
+    - whitespace # Пробелы и пустые строки
+    - gofumpt # Строгое форматирование (строже gofmt)
+
+    # Оптимизация и производительность
+    - unconvert # Ненужные конвертации
+    - unparam # Неиспользуемые параметры функций
+    - prealloc # Рекомендации по предварительному выделению слайсов
+
+    # Корректность кода
+    - bodyclose # Проверка закрытия HTTP body
+    - noctx # Проверка передачи context
+    - contextcheck # Проверка использования context
+    - errchkjson # Проверка ошибок json.Marshal
+    - nilerr # Проверка возврата nil error
+    - nilnil # Проверка возврата (nil, nil)
+
+    # Безопасность
+    - gosec # Проверка безопасности
+
+    # Качество кода
+    - dupl # Обнаружение дублированного кода
+    - goconst # Константы вместо magic numbers
+    - gocritic # Расширенные проверки
+    - gocyclo # Цикломатическая сложность
+    - cyclop # Цикломатическая сложность пакетов
+    - funlen # Длина функций
+    - lll # Длина строк
+    - maintidx # Индекс поддерживаемости
+
+    # Комментарии и документация
+    - godot # Точки в комментариях
+    - revive # Замена golint с дополнительными проверками
+
+    # Ошибки и обработка
+    - errorlint # Правильное использование errors
+    - wrapcheck # Проверка оборачивания ошибок
+
+    # Именование
+    - predeclared # Проверка использования предопределенных идентификаторов
+    - stylecheck # Стиль кода (включая именование)
+
+linters-settings:
+  staticcheck:
+    checks: ["all"]
+
+  govet:
+    enable:
+      - fieldalignment # Проверка выравнивания полей структур (padding)
+      - shadow # Проверка затенения переменных
+
+  gosec:
+    excludes:
+      - G404 # Use of weak random number generator (math/rand)
+
+  goimports:
+    local-prefixes: github.com/slashfast/wavesconsumer/v2
+
+  gci:
+    sections:
+      - standard # Стандартная библиотека
+      - default # Внешние пакеты
+      - prefix(github.com/slashfast/wavesconsumer/v2) # Локальные пакеты
+
+  gofumpt:
+    extra-rules: true
+
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+    ignore-tests: true
+
+  gocyclo:
+    min-complexity: 15 # Максимальная цикломатическая сложность
+
+  cyclop:
+    max-complexity: 15
+    skip-tests: true
+
+  funlen:
+    lines: 100 # Максимальное количество строк в функции
+    statements: 50 # Максимальное количество выражений
+
+  lll:
+    line-length: 140 # Максимальная длина строки
+
+  maintidx:
+    under: 20 # Порог индекса поддерживаемости
+
+  revive:
+    rules:
+      - name: var-naming
+      # - name: exported
+      # - name: blank-imports
+      # - name: context-as-argument
+      # - name: dot-imports
+      # - name: error-return
+      # - name: error-strings
+      # - name: error-naming
+      # - name: if-return
+      # - name: increment-decrement
+      # - name: var-declaration
+      # - name: package-comments
+      # - name: range
+      # - name: receiver-naming
+      # - name: time-naming
+      # - name: indent-error-flow
+      # - name: errorf
+      # - name: empty-block
+      # - name: superfluous-else
+      # - name: unused-parameter
+      # - name: unreachable-code
+      # - name: redefines-builtin-id
+
+  errorlint:
+    errorf: true
+    asserts: true
+    comparison: true
+
+  wrapcheck:
+    ignoreSigs:
+      - .Errorf(
+      - errors.New(
+      - errors.Unwrap(
+      - .Wrap(
+      - .Wrapf(
+    ignoreSigRegexps:
+      - \.New.*Error\(
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - hugeParam # Может быть слишком строгим
+      - rangeValCopy # Может быть слишком строгим
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  exclude-dirs:
+    - vendor
+    - third_party
+
+  exclude-files:
+    - ".*\\.pb\\.go$"
+    - ".*\\.gen\\.go$"
+
+  exclude-rules:
+    # Исключить gRPC generated код
+    - path: ".*/generated/.*\\.go"
+      linters:
+        - staticcheck
+        - govet
+        - revive
+        - stylecheck
+        - gocyclo
+        - funlen
+        - lll
+
+    # Игнорировать сгенерированный protobuf код
+    - source: "^// Code generated .* DO NOT EDIT\\.$"
+      linters:
+        - staticcheck
+        - govet
+        - revive
+        - stylecheck
+
+    # Разрешить небезопасные операции и длинные функции в тестах
+    - path: _test\.go
+      linters:
+        - gosec
+        - funlen
+        - gocyclo
+        - dupl
+
+    # Исключить известные false positives
+    - text: "G404: Use of weak random"
+      linters:
+        - gosec
+
+    # Игнорировать длинные строки в комментариях и тестах
+    - source: "^\\s*//.*$"
+      linters:
+        - lll
+
+    # Игнорировать package comments для main пакетов
+    - path: cmd/
+      text: "should have a package comment"
+      linters:
+        - revive
+
+    # Разрешить magic numbers в тестах
+    - path: _test\.go
+      text: "mnd: Magic number"
+      linters:
+        - gomnd
+
+    # Игнорировать ошибки wrap в некоторых местах
+    - text: "error returned from external package is unwrapped"
+      linters:
+        - wrapcheck
+      source: "json\\."
