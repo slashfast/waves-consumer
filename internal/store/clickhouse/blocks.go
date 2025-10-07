@@ -38,33 +38,33 @@ type UpdatesBatch struct {
 
 func NewUpdatesBatch() *UpdatesBatch {
 	return &UpdatesBatch{
-		NewBlocksBatch(),
-		NewTxs1Batch(),
-		NewTxs2Batch(),
-		NewTxs3Batch(),
-		NewTxs4Batch(),
-		NewTxs5Batch(),
-		NewTxs6Batch(),
-		NewTxs7Batch(),
-		NewTxs8Batch(),
-		NewTxs9Batch(),
-		NewTxs10Batch(),
-		NewTxs11Batch(),
-		NewTxs11TransferBatch(),
-		NewTxs12Batch(),
-		NewTxs12DataBatch(),
-		NewTxs13Batch(),
-		NewTxs14Batch(),
-		NewTxs15Batch(),
-		NewTxs16Batch(),
-		NewTxsArgsBatch(),
-		NewTxsPaymentsBatch(),
-		NewTxs17Batch(),
-		NewTxs18Batch(),
-		NewTxsArgsBatch(),
-		NewTxsPaymentsBatch(),
-		NewBalanceBatch(),
-		NewDataStorageBatch(),
+		Blocks:         NewBlocksBatch(),
+		Txs1:           NewTxs1Batch(),
+		Txs2:           NewTxs2Batch(),
+		Txs3:           NewTxs3Batch(),
+		Txs4:           NewTxs4Batch(),
+		Txs5:           NewTxs5Batch(),
+		Txs6:           NewTxs6Batch(),
+		Txs7:           NewTxs7Batch(),
+		Txs8:           NewTxs8Batch(),
+		Txs9:           NewTxs9Batch(),
+		Txs10:          NewTxs10Batch(),
+		Txs11:          NewTxs11Batch(),
+		Txs11Transfers: NewTxs11TransferBatch(),
+		Txs12:          NewTxs12Batch(),
+		Txs12Data:      NewTxs12DataBatch(),
+		Txs13:          NewTxs13Batch(),
+		Txs14:          NewTxs14Batch(),
+		Txs15:          NewTxs15Batch(),
+		Txs16:          NewTxs16Batch(),
+		Txs16Args:      NewTxsArgsBatch(),
+		Txs16Payments:  NewTxsPaymentsBatch(),
+		Txs17:          NewTxs17Batch(),
+		Txs18:          NewTxs18Batch(),
+		Txs18Args:      NewTxsArgsBatch(),
+		Txs18Payments:  NewTxsPaymentsBatch(),
+		Balances:       NewBalanceBatch(),
+		DataStorage:    NewDataStorageBatch(),
 	}
 }
 
@@ -111,9 +111,9 @@ type BlocksBatch struct {
 
 func NewBlocksBatch() *BlocksBatch {
 	return &BlocksBatch{
-		proto.ColInt32{},
-		proto.ColStr{},
-		proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true},
+		Height:    proto.ColInt32{},
+		Id:        proto.ColStr{},
+		Timestamp: proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true},
 	}
 }
 
@@ -134,18 +134,18 @@ type TxsBatch struct {
 
 func NewTxsBatch() *TxsBatch {
 	return &TxsBatch{
-		proto.ColInt64{},
-		proto.ColInt8{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true},
-		proto.ColInt32{},
-		proto.ColStr{},
-		proto.ColStr{},
-		new(proto.ColStr).Array(),
-		proto.ColInt32{},
-		proto.ColInt64{},
-		proto.ColStr{},
+		Uid:             proto.ColInt64{},
+		Type:            proto.ColInt8{},
+		Sender:          proto.ColStr{},
+		SenderPublicKey: proto.ColStr{},
+		Timestamp:       proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true},
+		Height:          proto.ColInt32{},
+		Id:              proto.ColStr{},
+		Signature:       proto.ColStr{},
+		Proofs:          new(proto.ColStr).Array(),
+		Version:         proto.ColInt32{},
+		Fee:             proto.ColInt64{},
+		Status:          proto.ColStr{},
 	}
 }
 
@@ -172,9 +172,9 @@ type Txs1Batch struct {
 
 func NewTxs1Batch() *Txs1Batch {
 	return &Txs1Batch{
-		NewTxsBatch(),
-		proto.ColStr{},
-		proto.ColInt64{},
+		TxsBatch:         NewTxsBatch(),
+		RecipientAddress: proto.ColStr{},
+		Amount:           proto.ColInt64{},
 	}
 }
 
@@ -192,9 +192,9 @@ type Txs2Batch struct {
 
 func NewTxs2Batch() *Txs2Batch {
 	return &Txs2Batch{
-		NewTxsBatch(),
-		proto.ColStr{},
-		proto.ColInt64{},
+		TxsBatch:         NewTxsBatch(),
+		RecipientAddress: proto.ColStr{},
+		Amount:           proto.ColInt64{},
 	}
 }
 
@@ -217,14 +217,14 @@ type Txs3Batch struct {
 
 func NewTxs3Batch() *Txs3Batch {
 	return &Txs3Batch{
-		NewTxsBatch(),
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColInt64{},
-		proto.ColInt32{},
-		proto.ColBool{},
-		proto.ColStr{},
+		TxsBatch:    NewTxsBatch(),
+		AssetId:     proto.ColStr{},
+		AssetName:   proto.ColStr{},
+		Description: proto.ColStr{},
+		Amount:      proto.ColInt64{},
+		Decimals:    proto.ColInt32{},
+		Reissuable:  proto.ColBool{},
+		Script:      proto.ColStr{},
 	}
 }
 
@@ -251,13 +251,13 @@ type Txs4Batch struct {
 
 func NewTxs4Batch() *Txs4Batch {
 	return &Txs4Batch{
-		NewTxsBatch(),
-		proto.ColStr{},
-		proto.ColInt64{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColStr{},
+		TxsBatch:         NewTxsBatch(),
+		AssetId:          proto.ColStr{},
+		Amount:           proto.ColInt64{},
+		RecipientAddress: proto.ColStr{},
+		RecipientAlias:   proto.ColStr{},
+		FeeAssetId:       proto.ColStr{},
+		Attachment:       proto.ColStr{},
 	}
 }
 
@@ -280,10 +280,10 @@ type Txs5Batch struct {
 
 func NewTxs5Batch() *Txs5Batch {
 	return &Txs5Batch{
-		NewTxsBatch(),
-		proto.ColStr{},
-		proto.ColInt64{},
-		proto.ColBool{},
+		TxsBatch:   NewTxsBatch(),
+		AssetId:    proto.ColStr{},
+		Amount:     proto.ColInt64{},
+		Reissuable: proto.ColBool{},
 	}
 }
 
@@ -302,9 +302,9 @@ type Txs6Batch struct {
 
 func NewTxs6Batch() *Txs6Batch {
 	return &Txs6Batch{
-		NewTxsBatch(),
-		proto.ColStr{},
-		proto.ColInt64{},
+		TxsBatch: NewTxsBatch(),
+		AssetId:  proto.ColStr{},
+		Amount:   proto.ColInt64{},
 	}
 }
 
@@ -347,34 +347,34 @@ type Txs7Batch struct {
 
 func NewTxs7Batch() *Txs7Batch {
 	return &Txs7Batch{
-		NewTxsBatch(),
-		proto.ColInt64{},
-		proto.ColInt64{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColInt64{},
-		proto.ColInt64{},
-		proto.ColStr{},
+		TxsBatch:       NewTxsBatch(),
+		Amount:         proto.ColInt64{},
+		Price:          proto.ColInt64{},
+		AmountAssetId:  proto.ColStr{},
+		PriceAssetId:   proto.ColStr{},
+		BuyMatcherFee:  proto.ColInt64{},
+		SellMatcherFee: proto.ColInt64{},
+		FeeAssetId:     proto.ColStr{},
 
 		// Nested orders
-		new(proto.ColStr).Array(),
-		new(proto.ColInt32).Array(),
-		new(proto.ColStr).Array(),
-		new(proto.ColStr).Array(),
-		new(proto.ColStr).Array(),
-		new(proto.ColStr).Array(),
-		new(proto.ColStr).Array(),
-		new(proto.ColInt32).Array(),
-		new(proto.ColInt64).Array(),
-		new(proto.ColInt64).Array(),
-		&proto.ColArr[time.Time]{Data: &proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true}},
-		&proto.ColArr[time.Time]{Data: &proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true}},
-		new(proto.ColInt64).Array(),
-		new(proto.ColStr).Array(),
-		proto.ColArr[[]string]{Data: new(proto.ColStr).Array()},
-		new(proto.ColStr).Array(),
-		new(proto.ColStr).Array(),
-		new(proto.ColInt32).Array(),
+		OrdersId:                new(proto.ColStr).Array(),
+		OrdersVersion:           new(proto.ColInt32).Array(),
+		OrdersSender:            new(proto.ColStr).Array(),
+		OrdersSenderPublicKey:   new(proto.ColStr).Array(),
+		OrdersMatcherPublicKey:  new(proto.ColStr).Array(),
+		OrdersAmountAssetId:     new(proto.ColStr).Array(),
+		OrdersPriceAssetId:      new(proto.ColStr).Array(),
+		OrdersOrderType:         new(proto.ColInt32).Array(),
+		OrdersAmount:            new(proto.ColInt64).Array(),
+		OrdersPrice:             new(proto.ColInt64).Array(),
+		OrdersTimestamp:         &proto.ColArr[time.Time]{Data: &proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true}},
+		OrdersExpiration:        &proto.ColArr[time.Time]{Data: &proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true}},
+		OrdersMatcherFee:        new(proto.ColInt64).Array(),
+		OrdersMatcherFeeAssetId: new(proto.ColStr).Array(),
+		OrdersProofs:            proto.ColArr[[]string]{Data: new(proto.ColStr).Array()},
+		OrdersSignature:         new(proto.ColStr).Array(),
+		OrdersEip712Signature:   new(proto.ColStr).Array(),
+		OrdersPriceMode:         new(proto.ColInt32).Array(),
 	}
 }
 
@@ -418,10 +418,10 @@ type Txs8Batch struct {
 
 func NewTxs8Batch() *Txs8Batch {
 	return &Txs8Batch{
-		NewTxsBatch(),
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColInt64{},
+		TxsBatch:         NewTxsBatch(),
+		RecipientAddress: proto.ColStr{},
+		RecipientAlias:   proto.ColStr{},
+		Amount:           proto.ColInt64{},
 	}
 }
 
@@ -439,8 +439,8 @@ type Txs9Batch struct {
 
 func NewTxs9Batch() *Txs9Batch {
 	return &Txs9Batch{
-		NewTxsBatch(),
-		proto.ColInt64{},
+		TxsBatch:   NewTxsBatch(),
+		LeaseTxUid: proto.ColInt64{},
 	}
 }
 
@@ -456,8 +456,8 @@ type Txs10Batch struct {
 
 func NewTxs10Batch() *Txs10Batch {
 	return &Txs10Batch{
-		NewTxsBatch(),
-		proto.ColStr{},
+		TxsBatch: NewTxsBatch(),
+		Alias:    proto.ColStr{},
 	}
 }
 
@@ -474,9 +474,9 @@ type Txs11Batch struct {
 
 func NewTxs11Batch() *Txs11Batch {
 	return &Txs11Batch{
-		NewTxsBatch(),
-		proto.ColStr{},
-		proto.ColStr{},
+		TxsBatch:   NewTxsBatch(),
+		AssetId:    proto.ColStr{},
+		Attachment: proto.ColStr{},
 	}
 }
 
@@ -498,13 +498,13 @@ type Txs11TransferBatch struct {
 
 func NewTxs11TransferBatch() *Txs11TransferBatch {
 	return &Txs11TransferBatch{
-		proto.ColInt64{},
-		proto.ColStr{},
-		proto.ColInt32{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColInt64{},
-		proto.ColInt32{},
+		TxUid:            proto.ColInt64{},
+		TxId:             proto.ColStr{},
+		PositionInTx:     proto.ColInt32{},
+		RecipientAddress: proto.ColStr{},
+		RecipientAlias:   proto.ColStr{},
+		Amount:           proto.ColInt64{},
+		Height:           proto.ColInt32{},
 	}
 }
 
@@ -524,7 +524,7 @@ type Txs12Batch struct {
 
 func NewTxs12Batch() *Txs12Batch {
 	return &Txs12Batch{
-		NewTxsBatch(),
+		TxsBatch: NewTxsBatch(),
 	}
 }
 
@@ -547,16 +547,16 @@ type Txs12DataBatch struct {
 
 func NewTxs12DataBatch() *Txs12DataBatch {
 	return &Txs12DataBatch{
-		proto.ColInt64{},
-		proto.ColStr{},
-		proto.ColInt32{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColInt64{},
-		proto.ColBool{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColInt32{},
+		TxUid:            proto.ColInt64{},
+		TxId:             proto.ColStr{},
+		PositionInTx:     proto.ColInt32{},
+		DataKey:          proto.ColStr{},
+		DataType:         proto.ColStr{},
+		DataValueInteger: proto.ColInt64{},
+		DataValueBoolean: proto.ColBool{},
+		DataValueBinary:  proto.ColStr{},
+		DataValueString:  proto.ColStr{},
+		Height:           proto.ColInt32{},
 	}
 }
 
@@ -580,8 +580,8 @@ type Txs13Batch struct {
 
 func NewTxs13Batch() *Txs13Batch {
 	return &Txs13Batch{
-		NewTxsBatch(),
-		proto.ColStr{},
+		TxsBatch: NewTxsBatch(),
+		Script:   proto.ColStr{},
 	}
 }
 
@@ -598,9 +598,9 @@ type Txs14Batch struct {
 
 func NewTxs14Batch() *Txs14Batch {
 	return &Txs14Batch{
-		NewTxsBatch(),
-		proto.ColStr{},
-		proto.ColInt64{},
+		TxsBatch:             NewTxsBatch(),
+		AssetId:              proto.ColStr{},
+		MinSponsoredAssetFee: proto.ColInt64{},
 	}
 }
 
@@ -618,9 +618,9 @@ type Txs15Batch struct {
 
 func NewTxs15Batch() *Txs15Batch {
 	return &Txs15Batch{
-		NewTxsBatch(),
-		proto.ColStr{},
-		proto.ColStr{},
+		TxsBatch: NewTxsBatch(),
+		AssetId:  proto.ColStr{},
+		Script:   proto.ColStr{},
 	}
 }
 
@@ -640,11 +640,11 @@ type Txs16Batch struct {
 
 func NewTxs16Batch() *Txs16Batch {
 	return &Txs16Batch{
-		NewTxsBatch(),
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColStr{},
+		TxsBatch:     NewTxsBatch(),
+		DappAddress:  proto.ColStr{},
+		DappAlias:    proto.ColStr{},
+		FunctionName: proto.ColStr{},
+		FeeAssetId:   proto.ColStr{},
 	}
 }
 
@@ -671,16 +671,16 @@ type TxsArgsBatch struct {
 
 func NewTxsArgsBatch() *TxsArgsBatch {
 	return &TxsArgsBatch{
-		proto.ColInt64{},
-		proto.ColStr{},
-		proto.ColInt32{},
-		proto.ColStr{},
-		proto.ColInt64{},
-		proto.ColBool{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColInt32{},
+		TxUid:           proto.ColInt64{},
+		TxId:            proto.ColStr{},
+		PositionInArgs:  proto.ColInt32{},
+		ArgType:         proto.ColStr{},
+		ArgValueInteger: proto.ColInt64{},
+		ArgValueBoolean: proto.ColBool{},
+		ArgValueBinary:  proto.ColStr{},
+		ArgValueString:  proto.ColStr{},
+		ArgValueList:    proto.ColStr{},
+		Height:          proto.ColInt32{},
 	}
 }
 
@@ -708,12 +708,12 @@ type TxsPaymentsBatch struct {
 
 func NewTxsPaymentsBatch() *TxsPaymentsBatch {
 	return &TxsPaymentsBatch{
-		proto.ColInt64{},
-		proto.ColStr{},
-		proto.ColInt32{},
-		proto.ColInt64{},
-		proto.ColInt32{},
-		proto.ColStr{},
+		TxUid:             proto.ColInt64{},
+		TxId:              proto.ColStr{},
+		PositionInPayment: proto.ColInt32{},
+		Amount:            proto.ColInt64{},
+		Height:            proto.ColInt32{},
+		AssetId:           proto.ColStr{},
 	}
 }
 
@@ -735,10 +735,10 @@ type Txs17Batch struct {
 
 func NewTxs17Batch() *Txs17Batch {
 	return &Txs17Batch{
-		NewTxsBatch(),
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColStr{},
+		TxsBatch:    NewTxsBatch(),
+		AssetId:     proto.ColStr{},
+		AssetName:   proto.ColStr{},
+		Description: proto.ColStr{},
 	}
 }
 
@@ -757,9 +757,9 @@ type Txs18Batch struct {
 
 func NewTxs18Batch() *Txs18Batch {
 	return &Txs18Batch{
-		NewTxsBatch(),
-		proto.ColStr{},
-		proto.ColStr{},
+		TxsBatch:     NewTxsBatch(),
+		Bytes:        proto.ColStr{},
+		FunctionName: proto.ColStr{},
 	}
 }
 
@@ -781,13 +781,13 @@ type BalanceBatch struct {
 
 func NewBalanceBatch() *BalanceBatch {
 	return &BalanceBatch{
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColInt64{},
-		proto.ColInt64{},
-		proto.ColInt64{},
-		proto.ColStr{},
-		proto.ColInt32{},
+		Address: proto.ColStr{},
+		AssetId: proto.ColStr{},
+		Amount:  proto.ColInt64{},
+		Delta:   proto.ColInt64{},
+		TxUid:   proto.ColInt64{},
+		TxId:    proto.ColStr{},
+		Height:  proto.ColInt32{},
 	}
 }
 
@@ -816,16 +816,16 @@ type DataStorageBatch struct {
 
 func NewDataStorageBatch() *DataStorageBatch {
 	return &DataStorageBatch{
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColInt64{},
-		proto.ColBool{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColInt64{},
-		proto.ColStr{},
-		proto.ColInt32{},
+		Address:          proto.ColStr{},
+		DataKey:          proto.ColStr{},
+		DataType:         proto.ColStr{},
+		DataValueInteger: proto.ColInt64{},
+		DataValueBoolean: proto.ColBool{},
+		DataValueBinary:  proto.ColStr{},
+		DataValueString:  proto.ColStr{},
+		TxUid:            proto.ColInt64{},
+		TxId:             proto.ColStr{},
+		Height:           proto.ColInt32{},
 	}
 }
 
