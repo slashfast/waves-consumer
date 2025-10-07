@@ -38,15 +38,18 @@ func NewApi(ctx context.Context, logger *zerolog.Logger, config Config) (*Api, e
 		grpc.WithTransportCredentials(creds),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(8*1024*1024)),
 		grpc.WithDefaultServiceConfig(`{
-			"loadBalancingConfig": [{"round_robin":{}}],
 			"methodConfig": [{
 				"name": [{"service": "waves.events.grpc.BlockchainUpdatesApi"}],
 				"retryPolicy": {
 					"maxAttempts": 4,
 					"initialBackoff": "0.1s",
-					"maxBackoff": "1s",
+					"maxBackoff": "5s",
 					"backoffMultiplier": 2,
-					"retryableStatusCodes": ["UNAVAILABLE"]
+					"retryableStatusCodes": [
+					    "UNAVAILABLE",
+					    "DEADLINE_EXCEEDED",
+                        "RESOURCE_EXHAUSTED"
+				    ]
 				}
 			}]
 		}`),
