@@ -1,6 +1,5 @@
 package updates
 
-import "C"
 import (
 	"context"
 	"crypto/tls"
