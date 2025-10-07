@@ -4,6 +4,8 @@ import "C"
 import (
 	"context"
 	"crypto/tls"
+	"sync"
+
 	"github.com/rs/zerolog"
 	"github.com/slashfast/wavesconsumer/v2/internal/store"
 	bu "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/events/grpc"
@@ -13,7 +15,6 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
-	"sync"
 )
 
 type Api struct {
@@ -110,59 +111,52 @@ func (a *Api) runHeightBufferFiller(ch chan int32, start int32) {
 	}
 }
 
-func (a *Api) StartConsumer(outputCh store.UpdatesChannel, currentHeightCh chan int32) {
-	wg := sync.WaitGroup{}
-	defer func() {
-		wg.Wait()
-		close(outputCh)
-	}()
+func (a *Api) StartConsumer(outCh chan<- store.Update, heightCh <-chan int32) {
+	wg := &sync.WaitGroup{}
+	wg.Add(int(a.cfg.MaxWorkers))
 
-	sem := make(chan struct{}, a.cfg.MaxWorkers)
-	defer close(sem)
-
-	logger := a.log.With().Str("worker", "consumer").Logger()
-
-	worker := func(height int32) {
-		defer func() { <-sem }()
-		defer wg.Done()
-
-		resp, err := a.client.GetBlockUpdate(
-			a.ctx,
-			&bu.GetBlockUpdateRequest{Height: height},
-		)
-
-		if err == nil {
-			outputCh <- resp.Update
-		} else {
-			st, ok := status.FromError(err)
-			if ok {
-				switch st.Code() {
-				case codes.Canceled:
-				default:
-					logger.Fatal().
-						Err(err).
-						Int32("height", height).
-						Str("details", st.String()).
-						Msg("Failed to get block update")
-				}
-			}
-		}
+	for range a.cfg.MaxWorkers {
+		go a.worker(a.ctx, wg, heightCh, outCh)
 	}
+
+	go func() {
+		defer close(outCh)
+		wg.Wait()
+	}()
+}
+
+func (a *Api) worker(ctx context.Context, wg *sync.WaitGroup, heightCh <-chan int32, outCh chan<- store.Update) {
+	defer wg.Done()
 
 	for {
 		select {
-		case <-a.ctx.Done():
+		case height := <-heightCh:
+			req := &bu.GetBlockUpdateRequest{Height: height}
+			resp, err := a.client.GetBlockUpdate(ctx, req)
+			if err != nil {
+				if s, ok := status.FromError(err); ok {
+					switch s.Code() {
+					case codes.Canceled:
+						return
+					default:
+						a.log.Fatal().
+							Err(err).
+							Int32("height", height).
+							Str("details", s.String()).
+							Msg("Failed to get the block update")
+					}
+				}
+			}
+
+			outCh <- resp.Update
+		case <-ctx.Done():
 			return
-		case height := <-currentHeightCh:
-			sem <- struct{}{}
-			wg.Add(1)
-			go worker(height)
 		}
 	}
 }
 
-func (a *Api) NewUpdatesChannel() store.UpdatesChannel {
-	return make(store.UpdatesChannel, a.cfg.BufferSize)
+func (a *Api) NewUpdatesChannel() chan store.Update {
+	return make(store.UpdatesChannel)
 }
 
 func (a *Api) Close() error {
