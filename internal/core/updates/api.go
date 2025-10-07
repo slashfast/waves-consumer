@@ -17,7 +17,7 @@ import (
 	"github.com/slashfast/wavesconsumer/v2/internal/store"
 )
 
-type Api struct {
+type API struct {
 	ctx    context.Context
 	client bu.BlockchainUpdatesApiClient
 	conn   *grpc.ClientConn
@@ -25,7 +25,7 @@ type Api struct {
 	cfg    Config
 }
 
-func NewApi(ctx context.Context, logger *zerolog.Logger, config Config) (*Api, error) {
+func NewAPI(ctx context.Context, logger *zerolog.Logger, config Config) (*API, error) {
 	var creds credentials.TransportCredentials
 	if config.Secure {
 		creds = credentials.NewTLS(&tls.Config{
@@ -41,7 +41,7 @@ func NewApi(ctx context.Context, logger *zerolog.Logger, config Config) (*Api, e
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(8*1024*1024)),
 		grpc.WithDefaultServiceConfig(`{
 			"methodConfig": [{
-				"name": [{"service": "waves.events.grpc.BlockchainUpdatesApi"}],
+				"name": [{"service": "waves.events.grpc.BlockchainUpdatesAPI"}],
 				"retryPolicy": {
 					"maxAttempts": 4,
 					"initialBackoff": "0.1s",
@@ -63,7 +63,7 @@ func NewApi(ctx context.Context, logger *zerolog.Logger, config Config) (*Api, e
 	client := bu.NewBlockchainUpdatesApiClient(conn)
 	newLogger := logger.With().Str("instance", "updates_api").Logger()
 
-	return &Api{
+	return &API{
 		ctx,
 		client,
 		conn,
@@ -72,9 +72,9 @@ func NewApi(ctx context.Context, logger *zerolog.Logger, config Config) (*Api, e
 	}, nil
 }
 
-func Provider(ctx context.Context, lc fx.Lifecycle, logger *zerolog.Logger, configProvider ConfigProvider) (*Api, error) {
+func Provider(ctx context.Context, lc fx.Lifecycle, logger *zerolog.Logger, configProvider ConfigProvider) (*API, error) {
 	cfg := NewConfigFromProvider(configProvider)
-	api, err := NewApi(ctx, logger, cfg)
+	api, err := NewAPI(ctx, logger, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func Provider(ctx context.Context, lc fx.Lifecycle, logger *zerolog.Logger, conf
 	return api, nil
 }
 
-func (a *Api) StartConsumer(outCh chan<- store.Update, heightCh <-chan int32) {
+func (a *API) StartConsumer(outCh chan<- store.Update, heightCh <-chan int32) {
 	wg := &sync.WaitGroup{}
 	wg.Add(int(a.cfg.MaxWorkers))
 
@@ -115,7 +115,7 @@ func (a *Api) StartConsumer(outCh chan<- store.Update, heightCh <-chan int32) {
 	}()
 }
 
-func (a *Api) worker(ctx context.Context, wg *sync.WaitGroup, heightCh <-chan int32, outCh chan<- store.Update) {
+func (a *API) worker(ctx context.Context, wg *sync.WaitGroup, heightCh <-chan int32, outCh chan<- store.Update) {
 	defer wg.Done()
 
 	for {
@@ -145,10 +145,10 @@ func (a *Api) worker(ctx context.Context, wg *sync.WaitGroup, heightCh <-chan in
 	}
 }
 
-func (a *Api) NewUpdatesChannel() chan store.Update {
+func (a *API) NewUpdatesChannel() chan store.Update {
 	return make(store.UpdatesChannel)
 }
 
-func (a *Api) Close() error {
+func (a *API) Close() error {
 	return a.conn.Close()
 }

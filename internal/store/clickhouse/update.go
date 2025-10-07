@@ -14,24 +14,24 @@ import (
 func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates, error) {
 	updates := NewUpdates()
 	height := blockUpdate.Height
-	blockId := base58.Encode(blockUpdate.Id)
+	blockID := base58.Encode(blockUpdate.Id)
 
 	blockAppend := blockUpdate.GetAppend()
 	block := blockAppend.GetBlock()
 	blockTimestamp := time.UnixMilli(block.Block.Header.Timestamp)
 
 	updates.Blocks.Height = append(updates.Blocks.Height, height)
-	updates.Blocks.Id = append(updates.Blocks.Id, blockId)
+	updates.Blocks.ID = append(updates.Blocks.ID, blockID)
 	updates.Blocks.Timestamp = append(updates.Blocks.Timestamp, blockTimestamp)
 
 	transactions := block.Block.Transactions
 	transactionsMetadata := blockAppend.TransactionsMetadata
 	txsStateUpdates := blockAppend.TransactionStateUpdates
 
-	var txUids []int64
-	var txIds []string
+	var txUIDs []int64
+	var txIDs []string
 	// txs
-	transactionIds := blockAppend.TransactionIds
+	transactionIDs := blockAppend.TransactionIds
 	for i, commonTx := range transactions {
 		proofs := make([]string, len(commonTx.Proofs))
 		for i, proof := range commonTx.Proofs {
@@ -43,15 +43,15 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 			signature = proofs[0]
 		}
 
-		txUid := (UidBase * int64(height)) + int64(i)
-		txId := base58.Encode(transactionIds[i])
+		txUID := (UIDBase * int64(height)) + int64(i)
+		txID := base58.Encode(transactionIDs[i])
 
-		txUids = append(txUids, txUid)
-		txIds = append(txIds, txId)
+		txUIDs = append(txUIDs, txUID)
+		txIDs = append(txIDs, txID)
 
 		fillBaseTx := func(txs *Txs, status string) {
-			txs.Uid = append(txs.Uid, txUid)
-			txs.Id = append(txs.Id, txId)
+			txs.UID = append(txs.UID, txUID)
+			txs.ID = append(txs.ID, txID)
 			txs.Sender = append(txs.Sender, base58.Encode(transactionsMetadata[i].SenderAddress))
 			txs.Height = append(txs.Height, height)
 			txs.Proofs = append(txs.Proofs, proofs)
@@ -94,7 +94,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.IssueTransaction))
 
-				txs.AssetId = append(txs.AssetId, txId)
+				txs.AssetID = append(txs.AssetID, txID)
 				txs.AssetName = append(txs.AssetName, d.Name)
 				txs.Description = append(txs.Description, d.Description)
 				txs.Amount = append(txs.Amount, d.Amount)
@@ -109,11 +109,11 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.TransferTransaction))
 
-				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.Amount.AssetId))
+				txs.AssetID = append(txs.AssetID, utils.ExtractAssetID(d.Amount.AssetId))
 				txs.Amount = append(txs.Amount, d.Amount.Amount)
 				txs.RecipientAddress = append(txs.RecipientAddress, utils.MustAddressFromBody(metadata.RecipientAddress))
 				txs.RecipientAlias = append(txs.RecipientAlias, d.Recipient.GetAlias())
-				txs.FeeAssetId = append(txs.FeeAssetId, utils.ExtractAssetId(wavesTx.Fee.AssetId))
+				txs.FeeAssetID = append(txs.FeeAssetID, utils.ExtractAssetID(wavesTx.Fee.AssetId))
 				txs.Attachment = append(txs.Attachment, base58.Encode(d.Attachment))
 
 			case *waves.Transaction_Reissue:
@@ -122,7 +122,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.ReissueTransaction))
 
-				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.AssetAmount.AssetId))
+				txs.AssetID = append(txs.AssetID, utils.ExtractAssetID(d.AssetAmount.AssetId))
 				txs.Amount = append(txs.Amount, d.AssetAmount.Amount)
 				txs.Reissuable = append(txs.Reissuable, d.Reissuable)
 
@@ -132,7 +132,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.BurnTransaction))
 
-				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.AssetAmount.AssetId))
+				txs.AssetID = append(txs.AssetID, utils.ExtractAssetID(d.AssetAmount.AssetId))
 				txs.Amount = append(txs.Amount, d.AssetAmount.Amount)
 
 			case *waves.Transaction_Exchange:
@@ -144,27 +144,27 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 
 				txs.Amount = append(txs.Amount, d.Amount)
 				txs.Price = append(txs.Price, d.Price)
-				txs.AmountAssetId = append(txs.AmountAssetId, utils.ExtractAssetId(d.Orders[0].AssetPair.AmountAssetId))
-				txs.PriceAssetId = append(txs.PriceAssetId, utils.ExtractAssetId(d.Orders[0].AssetPair.PriceAssetId))
+				txs.AmountAssetID = append(txs.AmountAssetID, utils.ExtractAssetID(d.Orders[0].AssetPair.AmountAssetId))
+				txs.PriceAssetID = append(txs.PriceAssetID, utils.ExtractAssetID(d.Orders[0].AssetPair.PriceAssetId))
 				txs.BuyMatcherFee = append(txs.BuyMatcherFee, d.BuyMatcherFee)
 				txs.SellMatcherFee = append(txs.SellMatcherFee, d.SellMatcherFee)
-				txs.FeeAssetId = append(txs.FeeAssetId, utils.ExtractAssetId(wavesTx.Fee.AssetId))
+				txs.FeeAssetID = append(txs.FeeAssetID, utils.ExtractAssetID(wavesTx.Fee.AssetId))
 
 				// Parse nested orders (always 2: buy and sell)
-				orderId := make([]string, len(d.Orders))
+				orderID := make([]string, len(d.Orders))
 				orderVersion := make([]int32, len(d.Orders))
 				orderSender := make([]string, len(d.Orders))
 				orderSenderPublicKey := make([]string, len(d.Orders))
 				orderMatcherPublicKey := make([]string, len(d.Orders))
-				orderAmountAssetId := make([]string, len(d.Orders))
-				orderPriceAssetId := make([]string, len(d.Orders))
+				orderAmountAssetID := make([]string, len(d.Orders))
+				orderPriceAssetID := make([]string, len(d.Orders))
 				orderOrderType := make([]int32, len(d.Orders))
 				orderAmount := make([]int64, len(d.Orders))
 				orderPrice := make([]int64, len(d.Orders))
 				orderTimestamp := make([]time.Time, len(d.Orders))
 				orderExpiration := make([]time.Time, len(d.Orders))
 				orderMatcherFee := make([]int64, len(d.Orders))
-				orderMatcherFeeAssetId := make([]string, len(d.Orders))
+				orderMatcherFeeAssetID := make([]string, len(d.Orders))
 				orderProofs := make([][]string, len(d.Orders))
 				orderSignature := make([]string, len(d.Orders))
 				orderEip712Signature := make([]string, len(d.Orders))
@@ -181,40 +181,40 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 						signature = proofs[0]
 					}
 
-					orderId[i] = base58.Encode(metadata.OrderIds[i])
+					orderID[i] = base58.Encode(metadata.OrderIds[i])
 					orderVersion[i] = order.Version
 					orderSender[i] = base58.Encode(metadata.OrderSenderAddresses[i])
 					orderSenderPublicKey[i] = base58.Encode(metadata.OrderSenderPublicKeys[i])
 					orderMatcherPublicKey[i] = base58.Encode(order.MatcherPublicKey)
-					orderAmountAssetId[i] = utils.ExtractAssetId(order.AssetPair.AmountAssetId)
-					orderPriceAssetId[i] = utils.ExtractAssetId(order.AssetPair.PriceAssetId)
+					orderAmountAssetID[i] = utils.ExtractAssetID(order.AssetPair.AmountAssetId)
+					orderPriceAssetID[i] = utils.ExtractAssetID(order.AssetPair.PriceAssetId)
 					orderOrderType[i] = int32(order.OrderSide)
 					orderAmount[i] = order.Amount
 					orderPrice[i] = order.Price
 					orderTimestamp[i] = time.UnixMilli(order.Timestamp)
 					orderExpiration[i] = time.UnixMilli(order.Expiration)
 					orderMatcherFee[i] = order.MatcherFee.Amount
-					orderMatcherFeeAssetId[i] = utils.ExtractAssetId(order.MatcherFee.AssetId)
+					orderMatcherFeeAssetID[i] = utils.ExtractAssetID(order.MatcherFee.AssetId)
 					orderProofs[i] = proofs
 					orderSignature[i] = signature
 					orderEip712Signature[i] = base58.Encode(order.GetEip712Signature())
 					orderPriceMode[i] = int32(order.PriceMode)
 				}
 
-				txs.OrdersId = append(txs.OrdersId, orderId)
+				txs.OrdersID = append(txs.OrdersID, orderID)
 				txs.OrdersVersion = append(txs.OrdersVersion, orderVersion)
 				txs.OrdersSender = append(txs.OrdersSender, orderSender)
 				txs.OrdersSenderPublicKey = append(txs.OrdersSenderPublicKey, orderSenderPublicKey)
 				txs.OrdersMatcherPublicKey = append(txs.OrdersMatcherPublicKey, orderMatcherPublicKey)
-				txs.OrdersAmountAssetId = append(txs.OrdersAmountAssetId, orderAmountAssetId)
-				txs.OrdersPriceAssetId = append(txs.OrdersPriceAssetId, orderPriceAssetId)
+				txs.OrdersAmountAssetID = append(txs.OrdersAmountAssetID, orderAmountAssetID)
+				txs.OrdersPriceAssetID = append(txs.OrdersPriceAssetID, orderPriceAssetID)
 				txs.OrdersOrderType = append(txs.OrdersOrderType, orderOrderType)
 				txs.OrdersAmount = append(txs.OrdersAmount, orderAmount)
 				txs.OrdersPrice = append(txs.OrdersPrice, orderPrice)
 				txs.OrdersTimestamp = append(txs.OrdersTimestamp, orderTimestamp)
 				txs.OrdersExpiration = append(txs.OrdersExpiration, orderExpiration)
 				txs.OrdersMatcherFee = append(txs.OrdersMatcherFee, orderMatcherFee)
-				txs.OrdersMatcherFeeAssetId = append(txs.OrdersMatcherFeeAssetId, orderMatcherFeeAssetId)
+				txs.OrdersMatcherFeeAssetID = append(txs.OrdersMatcherFeeAssetID, orderMatcherFeeAssetID)
 				txs.OrdersProofs = append(txs.OrdersProofs, orderProofs)
 				txs.OrdersSignature = append(txs.OrdersSignature, orderSignature)
 				txs.OrdersEip712Signature = append(txs.OrdersEip712Signature, orderEip712Signature)
@@ -236,7 +236,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.LeaseCancelTransaction))
 
-				txs.LeaseTxUid = append(txs.LeaseTxUid, txUid)
+				txs.LeaseTxUID = append(txs.LeaseTxUID, txUID)
 
 			case *waves.Transaction_CreateAlias:
 				txs := updates.Txs10
@@ -254,12 +254,12 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.MassTransferTransaction))
 
-				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.AssetId))
+				txs.AssetID = append(txs.AssetID, utils.ExtractAssetID(d.AssetId))
 				txs.Attachment = append(txs.Attachment, base58.Encode(d.Attachment))
 
 				for i, transfer := range d.Transfers {
-					txsTransfers.TxUid = append(txsTransfers.TxUid, txUid)
-					txsTransfers.TxId = append(txsTransfers.TxId, txId)
+					txsTransfers.TxUID = append(txsTransfers.TxUID, txUID)
+					txsTransfers.TxID = append(txsTransfers.TxID, txID)
 					// #nosec G115 -- number of transfers is always reasonable, no overflow possible
 					txsTransfers.PositionInTx = append(txsTransfers.PositionInTx, int32(i))
 					txsTransfers.RecipientAddress = append(txsTransfers.RecipientAddress, utils.MustAddressFromBody(metadata.RecipientsAddresses[i]))
@@ -287,8 +287,8 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 					case *waves.DataTransactionData_DataEntry_StringValue:
 						dataType = "string"
 					}
-					txsData.TxUid = append(txsData.TxUid, txUid)
-					txsData.TxId = append(txsData.TxId, txId)
+					txsData.TxUID = append(txsData.TxUID, txUID)
+					txsData.TxID = append(txsData.TxID, txID)
 					// #nosec G115 -- number of entries is always reasonable, no overflow possible
 					txsData.PositionInTx = append(txsData.PositionInTx, int32(i))
 					txsData.DataKey = append(txsData.DataKey, utils.EscapeUnicodeNull(dataEntry.Key))
@@ -313,7 +313,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.SponsorshipTransaction))
 
-				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.MinFee.AssetId))
+				txs.AssetID = append(txs.AssetID, utils.ExtractAssetID(d.MinFee.AssetId))
 				txs.MinSponsoredAssetFee = append(txs.MinSponsoredAssetFee, d.MinFee.Amount)
 
 			case *waves.Transaction_SetAssetScript:
@@ -322,7 +322,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.SetAssetScriptTransaction))
 
-				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.AssetId))
+				txs.AssetID = append(txs.AssetID, utils.ExtractAssetID(d.AssetId))
 				txs.Script = append(txs.Script, utils.ToBase64(d.Script))
 
 			case *waves.Transaction_InvokeScript:
@@ -342,11 +342,11 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				txs.DappAddress = append(txs.DappAddress, base58.Encode(metadata.DAppAddress))
 				txs.DappAlias = append(txs.DappAlias, d.DApp.GetAlias())
 				txs.FunctionName = append(txs.FunctionName, metadata.FunctionName)
-				txs.FeeAssetId = append(txs.FeeAssetId, utils.ExtractAssetId(wavesTx.Fee.AssetId))
+				txs.FeeAssetID = append(txs.FeeAssetID, utils.ExtractAssetID(wavesTx.Fee.AssetId))
 
 				for i, arg := range metadata.Arguments {
 					// #nosec G115 -- number of arguments is always reasonable, no overflow possible
-					err := AppendTxArg(txsArgs, arg, txId, txUid, int32(i), height)
+					err := AppendTxArg(txsArgs, arg, txID, txUID, int32(i), height)
 					if err != nil {
 						return nil, err
 					}
@@ -354,7 +354,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 
 				for i, payment := range metadata.Payments {
 					// #nosec G115 -- number of payments is always reasonable, no overflow possible
-					AppendTxPayment(txsPayments, payment, txId, txUid, int32(i), height)
+					AppendTxPayment(txsPayments, payment, txID, txUID, int32(i), height)
 				}
 
 			case *waves.Transaction_UpdateAssetInfo:
@@ -363,7 +363,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				fillBaseTx(txs.Txs, "success")
 				fillBaseWavesTx(txs.Txs, int8(proto.UpdateAssetInfoTransaction))
 
-				txs.AssetId = append(txs.AssetId, utils.ExtractAssetId(d.AssetId))
+				txs.AssetID = append(txs.AssetID, utils.ExtractAssetID(d.AssetId))
 				txs.AssetName = append(txs.AssetName, utils.EscapeUnicodeNull(d.Name))
 				txs.Description = append(txs.Description, utils.EscapeUnicodeNull(d.Description))
 
@@ -390,7 +390,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 
 				for i, arg := range actionMetadata.Invoke.Arguments {
 					// #nosec G115 -- number of arguments is always reasonable, no overflow possible
-					err := AppendTxArg(updates.Txs18Args, arg, txId, txUid, int32(i), height)
+					err := AppendTxArg(updates.Txs18Args, arg, txID, txUID, int32(i), height)
 					if err != nil {
 						return nil, err
 					}
@@ -399,7 +399,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 
 				for i, payment := range actionMetadata.Invoke.Payments {
 					// #nosec G115 -- number of payments is always reasonable, no overflow possible
-					AppendTxPayment(updates.Txs18Payments, payment, txId, txUid, int32(i), height)
+					AppendTxPayment(updates.Txs18Payments, payment, txID, txUID, int32(i), height)
 				}
 			}
 			txs.FunctionName = append(txs.FunctionName, funcName)
@@ -415,11 +415,11 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 			delta := bu.AmountAfter.Amount - bu.AmountBefore
 
 			balances.Address = append(balances.Address, base58.Encode(bu.Address))
-			balances.AssetId = append(balances.AssetId, utils.ExtractAssetId(bu.AmountAfter.AssetId))
+			balances.AssetID = append(balances.AssetID, utils.ExtractAssetID(bu.AmountAfter.AssetId))
 			balances.Amount = append(balances.Amount, bu.AmountAfter.Amount)
 			balances.Delta = append(balances.Delta, delta)
-			balances.TxUid = append(balances.TxUid, txUids[i])
-			balances.TxId = append(balances.TxId, txIds[i])
+			balances.TxUID = append(balances.TxUID, txUIDs[i])
+			balances.TxID = append(balances.TxID, txIDs[i])
 			balances.Height = append(balances.Height, height)
 		}
 		for _, deu := range su.DataEntries {
@@ -443,8 +443,8 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 			dataStorage.DataValueBoolean = append(dataStorage.DataValueBoolean, de.GetBoolValue())
 			dataStorage.DataValueBinary = append(dataStorage.DataValueBinary, utils.ToBase64(de.GetBinaryValue()))
 			dataStorage.DataValueString = append(dataStorage.DataValueString, de.GetStringValue())
-			dataStorage.TxUid = append(dataStorage.TxUid, txUids[i])
-			dataStorage.TxId = append(dataStorage.TxId, txIds[i])
+			dataStorage.TxUID = append(dataStorage.TxUID, txUIDs[i])
+			dataStorage.TxID = append(dataStorage.TxID, txIDs[i])
 			dataStorage.Height = append(dataStorage.Height, height)
 		}
 	}

@@ -5,7 +5,7 @@ import (
 )
 
 type BlocksBatch struct {
-	Id        proto.ColStr
+	ID        proto.ColStr
 	Timestamp proto.ColDateTime64
 	Height    proto.ColInt32
 }
@@ -13,7 +13,7 @@ type BlocksBatch struct {
 func NewBlocksBatch() *BlocksBatch {
 	return &BlocksBatch{
 		Height:    proto.ColInt32{},
-		Id:        proto.ColStr{},
+		ID:        proto.ColStr{},
 		Timestamp: proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true},
 	}
 }

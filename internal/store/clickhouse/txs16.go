@@ -9,7 +9,7 @@ type Txs16Batch struct {
 	DappAddress  proto.ColStr
 	DappAlias    proto.ColStr
 	FunctionName proto.ColStr
-	FeeAssetId   proto.ColStr
+	FeeAssetID   proto.ColStr
 }
 
 func NewTxs16Batch() *Txs16Batch {
@@ -18,7 +18,7 @@ func NewTxs16Batch() *Txs16Batch {
 		DappAddress:  proto.ColStr{},
 		DappAlias:    proto.ColStr{},
 		FunctionName: proto.ColStr{},
-		FeeAssetId:   proto.ColStr{},
+		FeeAssetID:   proto.ColStr{},
 	}
 }
 
@@ -27,12 +27,12 @@ func (t *Txs16Batch) Append(txs *Txs16) {
 	t.DappAddress.AppendArr(txs.DappAddress)
 	t.DappAlias.AppendArr(txs.DappAlias)
 	t.FunctionName.AppendArr(txs.FunctionName)
-	t.FeeAssetId.AppendArr(txs.FeeAssetId)
+	t.FeeAssetID.AppendArr(txs.FeeAssetID)
 }
 
 type TxsArgsBatch struct {
-	TxUid           proto.ColInt64
-	TxId            proto.ColStr
+	TxUID           proto.ColInt64
+	TxID            proto.ColStr
 	PositionInArgs  proto.ColInt32
 	ArgType         proto.ColStr
 	ArgValueInteger proto.ColInt64
@@ -45,8 +45,8 @@ type TxsArgsBatch struct {
 
 func NewTxsArgsBatch() *TxsArgsBatch {
 	return &TxsArgsBatch{
-		TxUid:           proto.ColInt64{},
-		TxId:            proto.ColStr{},
+		TxUID:           proto.ColInt64{},
+		TxID:            proto.ColStr{},
 		PositionInArgs:  proto.ColInt32{},
 		ArgType:         proto.ColStr{},
 		ArgValueInteger: proto.ColInt64{},
@@ -59,8 +59,8 @@ func NewTxsArgsBatch() *TxsArgsBatch {
 }
 
 func (t *TxsArgsBatch) Append(txs *TxsArgs) {
-	t.TxUid.AppendArr(txs.TxUid)
-	t.TxId.AppendArr(txs.TxId)
+	t.TxUID.AppendArr(txs.TxUID)
+	t.TxID.AppendArr(txs.TxID)
 	t.PositionInArgs.AppendArr(txs.PositionInArgs)
 	t.ArgType.AppendArr(txs.ArgType)
 	t.ArgValueInteger.AppendArr(txs.ArgValueInteger)
@@ -72,30 +72,30 @@ func (t *TxsArgsBatch) Append(txs *TxsArgs) {
 }
 
 type TxsPaymentsBatch struct {
-	TxUid             proto.ColInt64
-	TxId              proto.ColStr
+	TxUID             proto.ColInt64
+	TxID              proto.ColStr
 	PositionInPayment proto.ColInt32
 	Amount            proto.ColInt64
 	Height            proto.ColInt32
-	AssetId           proto.ColStr
+	AssetID           proto.ColStr
 }
 
 func NewTxsPaymentsBatch() *TxsPaymentsBatch {
 	return &TxsPaymentsBatch{
-		TxUid:             proto.ColInt64{},
-		TxId:              proto.ColStr{},
+		TxUID:             proto.ColInt64{},
+		TxID:              proto.ColStr{},
 		PositionInPayment: proto.ColInt32{},
 		Amount:            proto.ColInt64{},
 		Height:            proto.ColInt32{},
-		AssetId:           proto.ColStr{},
+		AssetID:           proto.ColStr{},
 	}
 }
 
 func (t *TxsPaymentsBatch) Append(txs *TxsPayments) {
-	t.TxUid.AppendArr(txs.TxUid)
-	t.TxId.AppendArr(txs.TxId)
+	t.TxUID.AppendArr(txs.TxUID)
+	t.TxID.AppendArr(txs.TxID)
 	t.PositionInPayment.AppendArr(txs.PositionInPayment)
 	t.Amount.AppendArr(txs.Amount)
 	t.Height.AppendArr(txs.Height)
-	t.AssetId.AppendArr(txs.AssetId)
+	t.AssetID.AppendArr(txs.AssetID)
 }

@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-type Api struct {
+type API struct {
 	ctx          context.Context
 	blocksClient node.BlocksApiClient
 	conn         *grpc.ClientConn
@@ -22,7 +22,7 @@ type Api struct {
 	cfg          Config
 }
 
-func NewApi(ctx context.Context, logger *zerolog.Logger, config Config) (*Api, error) {
+func NewAPI(ctx context.Context, logger *zerolog.Logger, config Config) (*API, error) {
 	var creds credentials.TransportCredentials
 	if config.Secure {
 		creds = credentials.NewTLS(&tls.Config{
@@ -38,7 +38,7 @@ func NewApi(ctx context.Context, logger *zerolog.Logger, config Config) (*Api, e
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(8*1024*1024)),
 		grpc.WithDefaultServiceConfig(`{
 			"methodConfig": [{
-				"name": [{"service": "waves.events.node.grpc.BlocksApi"}],
+				"name": [{"service": "waves.events.node.grpc.BlocksAPI"}],
 				"retryPolicy": {
 					"maxAttempts": 4,
 					"initialBackoff": "0.1s",
@@ -60,7 +60,7 @@ func NewApi(ctx context.Context, logger *zerolog.Logger, config Config) (*Api, e
 	blocksClient := node.NewBlocksApiClient(conn)
 	newLogger := logger.With().Str("instance", "node_api").Logger()
 
-	return &Api{
+	return &API{
 		ctx,
 		blocksClient,
 		conn,
@@ -69,9 +69,9 @@ func NewApi(ctx context.Context, logger *zerolog.Logger, config Config) (*Api, e
 	}, nil
 }
 
-func Provider(ctx context.Context, lc fx.Lifecycle, logger *zerolog.Logger, configProvider ConfigProvider) (*Api, error) {
+func Provider(ctx context.Context, lc fx.Lifecycle, logger *zerolog.Logger, configProvider ConfigProvider) (*API, error) {
 	cfg := NewConfigFromProvider(configProvider)
-	api, err := NewApi(ctx, logger, cfg)
+	api, err := NewAPI(ctx, logger, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func Provider(ctx context.Context, lc fx.Lifecycle, logger *zerolog.Logger, conf
 	return api, nil
 }
 
-func (a *Api) CurrentHeight() int32 {
+func (a *API) CurrentHeight() int32 {
 	height, err := a.currentHeight()
 	if err != nil {
 		a.log.Error().Err(err).Msg("Failed to get current height")
@@ -105,7 +105,7 @@ func (a *Api) CurrentHeight() int32 {
 	return height
 }
 
-func (a *Api) currentHeight() (int32, error) {
+func (a *API) currentHeight() (int32, error) {
 	resp, err := a.blocksClient.GetCurrentHeight(a.ctx, &emptypb.Empty{})
 	if err != nil {
 		return 0, err
@@ -114,7 +114,7 @@ func (a *Api) currentHeight() (int32, error) {
 	return int32(resp.Value), nil
 }
 
-func (a *Api) StartHeightPoller(output chan int32) {
+func (a *API) StartHeightPoller(output chan int32) {
 	logger := a.log.With().Str("worker", "height_poller").Logger()
 	for {
 		select {
@@ -130,7 +130,7 @@ func (a *Api) StartHeightPoller(output chan int32) {
 	}
 }
 
-func (a *Api) StartHeightProvider(outputCh chan int32, start int32) {
+func (a *API) StartHeightProvider(outputCh chan int32, start int32) {
 	logger := a.log.With().Str("worker", "height_consumer").Logger()
 
 	currentHeight := a.CurrentHeight()
@@ -177,6 +177,6 @@ func (a *Api) StartHeightProvider(outputCh chan int32, start int32) {
 	}
 }
 
-func (a *Api) Close() error {
+func (a *API) Close() error {
 	return a.conn.Close()
 }

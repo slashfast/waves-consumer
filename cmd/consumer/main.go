@@ -21,16 +21,16 @@ import (
 type App struct {
 	ctx     context.Context
 	log     zerolog.Logger
-	updates *updates.Api
-	node    *node.Api
+	updates *updates.API
+	node    *node.API
 	store   store.Connector
 }
 
 func NewApp(
 	ctx context.Context,
 	l *zerolog.Logger,
-	updates *updates.Api,
-	node *node.Api,
+	updates *updates.API,
+	node *node.API,
 	store store.Connector,
 ) *App {
 	app := &App{ctx, l.With().Str("instance", "app").Logger(), updates, node, store}

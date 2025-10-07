@@ -64,7 +64,7 @@ func NewUpdatesBatch() *UpdatesBatch {
 
 func (u *UpdatesBatch) Append(updates *Updates) {
 	u.Blocks.Height.AppendArr(updates.Blocks.Height)
-	u.Blocks.Id.AppendArr(updates.Blocks.Id)
+	u.Blocks.ID.AppendArr(updates.Blocks.ID)
 	u.Blocks.Timestamp.AppendArr(updates.Blocks.Timestamp)
 
 	u.Txs1.Append(updates.Txs1)

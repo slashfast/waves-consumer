@@ -6,20 +6,20 @@ import (
 
 type Txs14Batch struct {
 	*TxsBatch
-	AssetId              proto.ColStr
+	AssetID              proto.ColStr
 	MinSponsoredAssetFee proto.ColInt64
 }
 
 func NewTxs14Batch() *Txs14Batch {
 	return &Txs14Batch{
 		TxsBatch:             NewTxsBatch(),
-		AssetId:              proto.ColStr{},
+		AssetID:              proto.ColStr{},
 		MinSponsoredAssetFee: proto.ColInt64{},
 	}
 }
 
 func (t *Txs14Batch) Append(txs *Txs14) {
 	t.TxsBatch.Append(txs.Txs)
-	t.AssetId.AppendArr(txs.AssetId)
+	t.AssetID.AppendArr(txs.AssetID)
 	t.MinSponsoredAssetFee.AppendArr(txs.MinSponsoredAssetFee)
 }

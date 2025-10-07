@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	UidBase int64 = 100_000
+	UIDBase int64 = 100_000
 )
 
 type Updates struct {
@@ -77,7 +77,7 @@ func NewUpdates() *Updates {
 
 type Blocks struct {
 	Height    []int32
-	Id        []string
+	ID        []string
 	Timestamp []time.Time
 }
 
@@ -90,13 +90,13 @@ func NewBlocks() *Blocks {
 }
 
 type Txs struct {
-	Uid             []int64
+	UID             []int64
 	Type            []int8
 	Sender          []string
 	SenderPublicKey []string
 	Timestamp       []time.Time
 	Height          []int32
-	Id              []string
+	ID              []string
 	Signature       []string
 	Proofs          [][]string
 	Version         []int32
@@ -151,7 +151,7 @@ func NewTxs2() *Txs2 {
 
 type Txs3 struct {
 	*Txs
-	AssetId     []string
+	AssetID     []string
 	AssetName   []string
 	Description []string
 	Amount      []int64
@@ -175,11 +175,11 @@ func NewTxs3() *Txs3 {
 
 type Txs4 struct {
 	*Txs
-	AssetId          []string
+	AssetID          []string
 	Amount           []int64
 	RecipientAddress []string
 	RecipientAlias   []string
-	FeeAssetId       []string
+	FeeAssetID       []string
 	Attachment       []string
 }
 
@@ -197,7 +197,7 @@ func NewTxs4() *Txs4 {
 
 type Txs5 struct {
 	*Txs
-	AssetId    []string
+	AssetID    []string
 	Amount     []int64
 	Reissuable []bool
 }
@@ -213,7 +213,7 @@ func NewTxs5() *Txs5 {
 
 type Txs6 struct {
 	*Txs
-	AssetId []string
+	AssetID []string
 	Amount  []int64
 }
 
@@ -229,27 +229,27 @@ type Txs7 struct {
 	*Txs
 	Amount         []int64
 	Price          []int64
-	AmountAssetId  []string
-	PriceAssetId   []string
+	AmountAssetID  []string
+	PriceAssetID   []string
 	BuyMatcherFee  []int64
 	SellMatcherFee []int64
-	FeeAssetId     []string
+	FeeAssetID     []string
 
 	// Nested orders (always 2: buy and sell)
-	OrdersId                [][]string
+	OrdersID                [][]string
 	OrdersVersion           [][]int32
 	OrdersSender            [][]string
 	OrdersSenderPublicKey   [][]string
 	OrdersMatcherPublicKey  [][]string
-	OrdersAmountAssetId     [][]string
-	OrdersPriceAssetId      [][]string
+	OrdersAmountAssetID     [][]string
+	OrdersPriceAssetID      [][]string
 	OrdersOrderType         [][]int32
 	OrdersAmount            [][]int64
 	OrdersPrice             [][]int64
 	OrdersTimestamp         [][]time.Time
 	OrdersExpiration        [][]time.Time
 	OrdersMatcherFee        [][]int64
-	OrdersMatcherFeeAssetId [][]string
+	OrdersMatcherFeeAssetID [][]string
 	OrdersProofs            [][][]string
 	OrdersSignature         [][]string
 	OrdersEip712Signature   [][]string
@@ -307,7 +307,7 @@ func NewTxs8() *Txs8 {
 
 type Txs9 struct {
 	*Txs
-	LeaseTxUid []int64
+	LeaseTxUID []int64
 }
 
 func NewTxs9() *Txs9 {
@@ -331,7 +331,7 @@ func NewTxs10() *Txs10 {
 
 type Txs11 struct {
 	*Txs
-	AssetId    []string
+	AssetID    []string
 	Attachment []string
 }
 
@@ -344,8 +344,8 @@ func NewTxs11() *Txs11 {
 }
 
 type Txs11Transfer struct {
-	TxUid            []int64
-	TxId             []string
+	TxUID            []int64
+	TxID             []string
 	PositionInTx     []int32
 	RecipientAddress []string
 	RecipientAlias   []string
@@ -376,8 +376,8 @@ func NewTxs12() *Txs12 {
 }
 
 type Txs12Data struct {
-	TxUid            []int64
-	TxId             []string
+	TxUID            []int64
+	TxID             []string
 	PositionInTx     []int32
 	DataKey          []string
 	DataType         []string
@@ -417,7 +417,7 @@ func NewTxs13() *Txs13 {
 
 type Txs14 struct {
 	*Txs
-	AssetId              []string
+	AssetID              []string
 	MinSponsoredAssetFee []int64
 }
 
@@ -431,7 +431,7 @@ func NewTxs14() *Txs14 {
 
 type Txs15 struct {
 	*Txs
-	AssetId []string
+	AssetID []string
 	Script  []string
 }
 
@@ -448,7 +448,7 @@ type Txs16 struct {
 	DappAddress  []string
 	DappAlias    []string
 	FunctionName []string
-	FeeAssetId   []string
+	FeeAssetID   []string
 }
 
 func NewTxs16() *Txs16 {
@@ -462,8 +462,8 @@ func NewTxs16() *Txs16 {
 }
 
 type TxsArgs struct {
-	TxUid           []int64
-	TxId            []string
+	TxUID           []int64
+	TxID            []string
 	PositionInArgs  []int32
 	ArgType         []string
 	ArgValueInteger []int64
@@ -489,7 +489,7 @@ func NewTxsArgs() *TxsArgs {
 	}
 }
 
-func AppendTxArg(argsPtr *TxsArgs, arg *waves.InvokeScriptResult_Call_Argument, txId string, txUid int64, pos, height int32) error {
+func AppendTxArg(argsPtr *TxsArgs, arg *waves.InvokeScriptResult_Call_Argument, txID string, txUID int64, pos, height int32) error {
 	var argType string
 	switch arg.Value.(type) {
 	case *waves.InvokeScriptResult_Call_Argument_IntegerValue:
@@ -511,8 +511,8 @@ func AppendTxArg(argsPtr *TxsArgs, arg *waves.InvokeScriptResult_Call_Argument, 
 		return err
 	}
 
-	argsPtr.TxUid = append(argsPtr.TxUid, txUid)
-	argsPtr.TxId = append(argsPtr.TxId, txId)
+	argsPtr.TxUID = append(argsPtr.TxUID, txUID)
+	argsPtr.TxID = append(argsPtr.TxID, txID)
 	argsPtr.PositionInArgs = append(argsPtr.PositionInArgs, pos)
 	argsPtr.ArgType = append(argsPtr.ArgType, argType)
 	argsPtr.ArgValueInteger = append(argsPtr.ArgValueInteger, arg.GetIntegerValue())
@@ -526,12 +526,12 @@ func AppendTxArg(argsPtr *TxsArgs, arg *waves.InvokeScriptResult_Call_Argument, 
 }
 
 type TxsPayments struct {
-	TxUid             []int64
-	TxId              []string
+	TxUID             []int64
+	TxID              []string
 	PositionInPayment []int32
 	Amount            []int64
 	Height            []int32
-	AssetId           []string
+	AssetID           []string
 }
 
 func NewTxsPayments() *TxsPayments {
@@ -545,18 +545,18 @@ func NewTxsPayments() *TxsPayments {
 	}
 }
 
-func AppendTxPayment(paymentsPtr *TxsPayments, payment *waves.Amount, txId string, txUid int64, pos, height int32) {
-	paymentsPtr.TxUid = append(paymentsPtr.TxUid, txUid)
-	paymentsPtr.TxId = append(paymentsPtr.TxId, txId)
+func AppendTxPayment(paymentsPtr *TxsPayments, payment *waves.Amount, txID string, txUID int64, pos, height int32) {
+	paymentsPtr.TxUID = append(paymentsPtr.TxUID, txUID)
+	paymentsPtr.TxID = append(paymentsPtr.TxID, txID)
 	paymentsPtr.PositionInPayment = append(paymentsPtr.PositionInPayment, pos)
 	paymentsPtr.Amount = append(paymentsPtr.Amount, payment.Amount)
 	paymentsPtr.Height = append(paymentsPtr.Height, height)
-	paymentsPtr.AssetId = append(paymentsPtr.AssetId, utils.ExtractAssetId(payment.AssetId))
+	paymentsPtr.AssetID = append(paymentsPtr.AssetID, utils.ExtractAssetID(payment.AssetId))
 }
 
 type Txs17 struct {
 	*Txs
-	AssetId     []string
+	AssetID     []string
 	AssetName   []string
 	Description []string
 }
@@ -586,11 +586,11 @@ func NewTxs18() *Txs18 {
 
 type Balance struct {
 	Address []string
-	AssetId []string
+	AssetID []string
 	Amount  []int64
 	Delta   []int64
-	TxUid   []int64
-	TxId    []string
+	TxUID   []int64
+	TxID    []string
 	Height  []int32
 }
 
@@ -614,8 +614,8 @@ type DataStorage struct {
 	DataValueBoolean []bool
 	DataValueBinary  []string
 	DataValueString  []string
-	TxUid            []int64
-	TxId             []string
+	TxUID            []int64
+	TxID             []string
 	Height           []int32
 }
 

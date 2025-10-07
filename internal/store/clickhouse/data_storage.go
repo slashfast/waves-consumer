@@ -12,8 +12,8 @@ type DataStorageBatch struct {
 	DataValueBoolean proto.ColBool
 	DataValueBinary  proto.ColStr
 	DataValueString  proto.ColStr
-	TxUid            proto.ColInt64
-	TxId             proto.ColStr
+	TxUID            proto.ColInt64
+	TxID             proto.ColStr
 	Height           proto.ColInt32
 }
 
@@ -26,8 +26,8 @@ func NewDataStorageBatch() *DataStorageBatch {
 		DataValueBoolean: proto.ColBool{},
 		DataValueBinary:  proto.ColStr{},
 		DataValueString:  proto.ColStr{},
-		TxUid:            proto.ColInt64{},
-		TxId:             proto.ColStr{},
+		TxUID:            proto.ColInt64{},
+		TxID:             proto.ColStr{},
 		Height:           proto.ColInt32{},
 	}
 }
@@ -40,7 +40,7 @@ func (d *DataStorageBatch) Append(dataStorage *DataStorage) {
 	d.DataValueBoolean.AppendArr(dataStorage.DataValueBoolean)
 	d.DataValueBinary.AppendArr(dataStorage.DataValueBinary)
 	d.DataValueString.AppendArr(dataStorage.DataValueString)
-	d.TxUid.AppendArr(dataStorage.TxUid)
-	d.TxId.AppendArr(dataStorage.TxId)
+	d.TxUID.AppendArr(dataStorage.TxUID)
+	d.TxID.AppendArr(dataStorage.TxID)
 	d.Height.AppendArr(dataStorage.Height)
 }

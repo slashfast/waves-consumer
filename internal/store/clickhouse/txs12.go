@@ -19,8 +19,8 @@ func (t *Txs12Batch) Append(txs *Txs12) {
 }
 
 type Txs12DataBatch struct {
-	TxUid            proto.ColInt64
-	TxId             proto.ColStr
+	TxUID            proto.ColInt64
+	TxID             proto.ColStr
 	PositionInTx     proto.ColInt32
 	DataKey          proto.ColStr
 	DataType         proto.ColStr
@@ -33,8 +33,8 @@ type Txs12DataBatch struct {
 
 func NewTxs12DataBatch() *Txs12DataBatch {
 	return &Txs12DataBatch{
-		TxUid:            proto.ColInt64{},
-		TxId:             proto.ColStr{},
+		TxUID:            proto.ColInt64{},
+		TxID:             proto.ColStr{},
 		PositionInTx:     proto.ColInt32{},
 		DataKey:          proto.ColStr{},
 		DataType:         proto.ColStr{},
@@ -47,8 +47,8 @@ func NewTxs12DataBatch() *Txs12DataBatch {
 }
 
 func (t *Txs12DataBatch) Append(txs *Txs12Data) {
-	t.TxUid.AppendArr(txs.TxUid)
-	t.TxId.AppendArr(txs.TxId)
+	t.TxUID.AppendArr(txs.TxUID)
+	t.TxID.AppendArr(txs.TxID)
 	t.PositionInTx.AppendArr(txs.PositionInTx)
 	t.DataKey.AppendArr(txs.DataKey)
 	t.DataType.AppendArr(txs.DataType)

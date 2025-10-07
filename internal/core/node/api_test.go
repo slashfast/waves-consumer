@@ -16,7 +16,7 @@ import (
 	"github.com/slashfast/wavesconsumer/v2/internal/config"
 )
 
-func NewTestNode(ctx context.Context) (*Api, error) {
+func NewTestNode(ctx context.Context) (*API, error) {
 	v := viper.New()
 	v.SetConfigType("dotenv")
 	v.SetConfigFile("../../../.env")
@@ -25,7 +25,7 @@ func NewTestNode(ctx context.Context) (*Api, error) {
 
 	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
-	return NewApi(ctx, &logger, cfg)
+	return NewAPI(ctx, &logger, cfg)
 }
 
 func TestStartHeightPoller(t *testing.T) {

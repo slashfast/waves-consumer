@@ -6,7 +6,7 @@ import (
 
 type Txs5Batch struct {
 	*TxsBatch
-	AssetId    proto.ColStr
+	AssetID    proto.ColStr
 	Amount     proto.ColInt64
 	Reissuable proto.ColBool
 }
@@ -14,7 +14,7 @@ type Txs5Batch struct {
 func NewTxs5Batch() *Txs5Batch {
 	return &Txs5Batch{
 		TxsBatch:   NewTxsBatch(),
-		AssetId:    proto.ColStr{},
+		AssetID:    proto.ColStr{},
 		Amount:     proto.ColInt64{},
 		Reissuable: proto.ColBool{},
 	}
@@ -22,7 +22,7 @@ func NewTxs5Batch() *Txs5Batch {
 
 func (t *Txs5Batch) Append(txs *Txs5) {
 	t.TxsBatch.Append(txs.Txs)
-	t.AssetId.AppendArr(txs.AssetId)
+	t.AssetID.AppendArr(txs.AssetID)
 	t.Amount.AppendArr(txs.Amount)
 	t.Reissuable.AppendArr(txs.Reissuable)
 }

@@ -12,7 +12,7 @@ const (
 	MainNet = 'W'
 )
 
-func ExtractAssetId(bytes []byte) string {
+func ExtractAssetID(bytes []byte) string {
 	if bytes == nil {
 		return "WAVES"
 	}

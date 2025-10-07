@@ -6,7 +6,7 @@ import (
 
 type Txs3Batch struct {
 	*TxsBatch
-	AssetId     proto.ColStr
+	AssetID     proto.ColStr
 	AssetName   proto.ColStr
 	Description proto.ColStr
 	Amount      proto.ColInt64
@@ -18,7 +18,7 @@ type Txs3Batch struct {
 func NewTxs3Batch() *Txs3Batch {
 	return &Txs3Batch{
 		TxsBatch:    NewTxsBatch(),
-		AssetId:     proto.ColStr{},
+		AssetID:     proto.ColStr{},
 		AssetName:   proto.ColStr{},
 		Description: proto.ColStr{},
 		Amount:      proto.ColInt64{},
@@ -30,7 +30,7 @@ func NewTxs3Batch() *Txs3Batch {
 
 func (t *Txs3Batch) Append(txs *Txs3) {
 	t.TxsBatch.Append(txs.Txs)
-	t.AssetId.AppendArr(txs.AssetId)
+	t.AssetID.AppendArr(txs.AssetID)
 	t.AssetName.AppendArr(txs.AssetName)
 	t.Description.AppendArr(txs.Description)
 	t.Amount.AppendArr(txs.Amount)

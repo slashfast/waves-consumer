@@ -13,22 +13,22 @@ type Txs7Batch struct {
 	OrdersPriceMode         *proto.ColArr[int32]
 	OrdersEip712Signature   *proto.ColArr[string]
 	OrdersSignature         *proto.ColArr[string]
-	OrdersPriceAssetId      *proto.ColArr[string]
-	OrdersMatcherFeeAssetId *proto.ColArr[string]
-	OrdersId                *proto.ColArr[string]
+	OrdersPriceAssetID      *proto.ColArr[string]
+	OrdersMatcherFeeAssetID *proto.ColArr[string]
+	OrdersID                *proto.ColArr[string]
 	OrdersVersion           *proto.ColArr[int32]
 	OrdersSender            *proto.ColArr[string]
 	OrdersSenderPublicKey   *proto.ColArr[string]
 	OrdersMatcherPublicKey  *proto.ColArr[string]
 	OrdersOrderType         *proto.ColArr[int32]
 	OrdersExpiration        *proto.ColArr[time.Time]
-	OrdersAmountAssetId     *proto.ColArr[string]
+	OrdersAmountAssetID     *proto.ColArr[string]
 	OrdersAmount            *proto.ColArr[int64]
 	OrdersPrice             *proto.ColArr[int64]
 	*TxsBatch
-	FeeAssetId     proto.ColStr
-	PriceAssetId   proto.ColStr
-	AmountAssetId  proto.ColStr
+	FeeAssetID     proto.ColStr
+	PriceAssetID   proto.ColStr
+	AmountAssetID  proto.ColStr
 	Amount         proto.ColInt64
 	Price          proto.ColInt64
 	SellMatcherFee proto.ColInt64
@@ -40,27 +40,27 @@ func NewTxs7Batch() *Txs7Batch {
 		TxsBatch:       NewTxsBatch(),
 		Amount:         proto.ColInt64{},
 		Price:          proto.ColInt64{},
-		AmountAssetId:  proto.ColStr{},
-		PriceAssetId:   proto.ColStr{},
+		AmountAssetID:  proto.ColStr{},
+		PriceAssetID:   proto.ColStr{},
 		BuyMatcherFee:  proto.ColInt64{},
 		SellMatcherFee: proto.ColInt64{},
-		FeeAssetId:     proto.ColStr{},
+		FeeAssetID:     proto.ColStr{},
 
 		// Nested orders
-		OrdersId:                new(proto.ColStr).Array(),
+		OrdersID:                new(proto.ColStr).Array(),
 		OrdersVersion:           new(proto.ColInt32).Array(),
 		OrdersSender:            new(proto.ColStr).Array(),
 		OrdersSenderPublicKey:   new(proto.ColStr).Array(),
 		OrdersMatcherPublicKey:  new(proto.ColStr).Array(),
-		OrdersAmountAssetId:     new(proto.ColStr).Array(),
-		OrdersPriceAssetId:      new(proto.ColStr).Array(),
+		OrdersAmountAssetID:     new(proto.ColStr).Array(),
+		OrdersPriceAssetID:      new(proto.ColStr).Array(),
 		OrdersOrderType:         new(proto.ColInt32).Array(),
 		OrdersAmount:            new(proto.ColInt64).Array(),
 		OrdersPrice:             new(proto.ColInt64).Array(),
 		OrdersTimestamp:         &proto.ColArr[time.Time]{Data: &proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true}},
 		OrdersExpiration:        &proto.ColArr[time.Time]{Data: &proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true}},
 		OrdersMatcherFee:        new(proto.ColInt64).Array(),
-		OrdersMatcherFeeAssetId: new(proto.ColStr).Array(),
+		OrdersMatcherFeeAssetID: new(proto.ColStr).Array(),
 		OrdersProofs:            proto.ColArr[[]string]{Data: new(proto.ColStr).Array()},
 		OrdersSignature:         new(proto.ColStr).Array(),
 		OrdersEip712Signature:   new(proto.ColStr).Array(),
@@ -72,27 +72,27 @@ func (t *Txs7Batch) Append(txs *Txs7) {
 	t.TxsBatch.Append(txs.Txs)
 	t.Amount.AppendArr(txs.Amount)
 	t.Price.AppendArr(txs.Price)
-	t.AmountAssetId.AppendArr(txs.AmountAssetId)
-	t.PriceAssetId.AppendArr(txs.PriceAssetId)
+	t.AmountAssetID.AppendArr(txs.AmountAssetID)
+	t.PriceAssetID.AppendArr(txs.PriceAssetID)
 	t.BuyMatcherFee.AppendArr(txs.BuyMatcherFee)
 	t.SellMatcherFee.AppendArr(txs.SellMatcherFee)
-	t.FeeAssetId.AppendArr(txs.FeeAssetId)
+	t.FeeAssetID.AppendArr(txs.FeeAssetID)
 
 	// Nested orders
-	t.OrdersId.AppendArr(txs.OrdersId)
+	t.OrdersID.AppendArr(txs.OrdersID)
 	t.OrdersVersion.AppendArr(txs.OrdersVersion)
 	t.OrdersSender.AppendArr(txs.OrdersSender)
 	t.OrdersSenderPublicKey.AppendArr(txs.OrdersSenderPublicKey)
 	t.OrdersMatcherPublicKey.AppendArr(txs.OrdersMatcherPublicKey)
-	t.OrdersAmountAssetId.AppendArr(txs.OrdersAmountAssetId)
-	t.OrdersPriceAssetId.AppendArr(txs.OrdersPriceAssetId)
+	t.OrdersAmountAssetID.AppendArr(txs.OrdersAmountAssetID)
+	t.OrdersPriceAssetID.AppendArr(txs.OrdersPriceAssetID)
 	t.OrdersOrderType.AppendArr(txs.OrdersOrderType)
 	t.OrdersAmount.AppendArr(txs.OrdersAmount)
 	t.OrdersPrice.AppendArr(txs.OrdersPrice)
 	t.OrdersTimestamp.AppendArr(txs.OrdersTimestamp)
 	t.OrdersExpiration.AppendArr(txs.OrdersExpiration)
 	t.OrdersMatcherFee.AppendArr(txs.OrdersMatcherFee)
-	t.OrdersMatcherFeeAssetId.AppendArr(txs.OrdersMatcherFeeAssetId)
+	t.OrdersMatcherFeeAssetID.AppendArr(txs.OrdersMatcherFeeAssetID)
 	t.OrdersProofs.AppendArr(txs.OrdersProofs)
 	t.OrdersSignature.AppendArr(txs.OrdersSignature)
 	t.OrdersEip712Signature.AppendArr(txs.OrdersEip712Signature)
