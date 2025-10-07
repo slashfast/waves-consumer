@@ -1,6 +1,8 @@
 package clickhouse
 
 import (
+	"time"
+
 	"github.com/ClickHouse/ch-go/proto"
 )
 
@@ -13,7 +15,6 @@ type UpdatesBatch struct {
 	Txs5           *Txs5Batch
 	Txs6           *Txs6Batch
 	Txs7           *Txs7Batch
-	Txs7Orders     *Txs7OrderBatch
 	Txs8           *Txs8Batch
 	Txs9           *Txs9Batch
 	Txs10          *Txs10Batch
@@ -45,7 +46,6 @@ func NewUpdatesBatch() *UpdatesBatch {
 		NewTxs5Batch(),
 		NewTxs6Batch(),
 		NewTxs7Batch(),
-		NewTxs7OrdersBatch(),
 		NewTxs8Batch(),
 		NewTxs9Batch(),
 		NewTxs10Batch(),
@@ -80,7 +80,6 @@ func (u *UpdatesBatch) Append(updates *Updates) {
 	u.Txs5.Append(updates.Txs5)
 	u.Txs6.Append(updates.Txs6)
 	u.Txs7.Append(updates.Txs7)
-	u.Txs7Orders.Append(updates.Txs7Orders)
 	u.Txs8.Append(updates.Txs8)
 	u.Txs9.Append(updates.Txs9)
 	u.Txs10.Append(updates.Txs10)
@@ -324,6 +323,26 @@ type Txs7Batch struct {
 	BuyMatcherFee  proto.ColInt64
 	SellMatcherFee proto.ColInt64
 	FeeAssetId     proto.ColStr
+
+	// Nested orders columns
+	OrdersId                *proto.ColArr[string]
+	OrdersVersion           *proto.ColArr[int32]
+	OrdersSender            *proto.ColArr[string]
+	OrdersSenderPublicKey   *proto.ColArr[string]
+	OrdersMatcherPublicKey  *proto.ColArr[string]
+	OrdersAmountAssetId     *proto.ColArr[string]
+	OrdersPriceAssetId      *proto.ColArr[string]
+	OrdersOrderType         *proto.ColArr[int32]
+	OrdersAmount            *proto.ColArr[int64]
+	OrdersPrice             *proto.ColArr[int64]
+	OrdersTimestamp         *proto.ColArr[time.Time]
+	OrdersExpiration        *proto.ColArr[time.Time]
+	OrdersMatcherFee        *proto.ColArr[int64]
+	OrdersMatcherFeeAssetId *proto.ColArr[string]
+	OrdersProofs            proto.ColArr[[]string]
+	OrdersSignature         *proto.ColArr[string]
+	OrdersEip712Signature   *proto.ColArr[string]
+	OrdersPriceMode         *proto.ColArr[int32]
 }
 
 func NewTxs7Batch() *Txs7Batch {
@@ -336,6 +355,26 @@ func NewTxs7Batch() *Txs7Batch {
 		proto.ColInt64{},
 		proto.ColInt64{},
 		proto.ColStr{},
+
+		// Nested orders
+		new(proto.ColStr).Array(),
+		new(proto.ColInt32).Array(),
+		new(proto.ColStr).Array(),
+		new(proto.ColStr).Array(),
+		new(proto.ColStr).Array(),
+		new(proto.ColStr).Array(),
+		new(proto.ColStr).Array(),
+		new(proto.ColInt32).Array(),
+		new(proto.ColInt64).Array(),
+		new(proto.ColInt64).Array(),
+		&proto.ColArr[time.Time]{Data: &proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true}},
+		&proto.ColArr[time.Time]{Data: &proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true}},
+		new(proto.ColInt64).Array(),
+		new(proto.ColStr).Array(),
+		proto.ColArr[[]string]{Data: new(proto.ColStr).Array()},
+		new(proto.ColStr).Array(),
+		new(proto.ColStr).Array(),
+		new(proto.ColInt32).Array(),
 	}
 }
 
@@ -348,80 +387,26 @@ func (t *Txs7Batch) Append(txs *Txs7) {
 	t.BuyMatcherFee.AppendArr(txs.BuyMatcherFee)
 	t.SellMatcherFee.AppendArr(txs.SellMatcherFee)
 	t.FeeAssetId.AppendArr(txs.FeeAssetId)
-}
 
-type Txs7OrderBatch struct {
-	TxUid             proto.ColInt64
-	TxId              proto.ColStr
-	Id                proto.ColStr
-	Version           proto.ColInt32
-	Sender            proto.ColStr
-	SenderPublicKey   proto.ColStr
-	MatcherPublicKey  proto.ColStr
-	AmountAssetId     proto.ColStr
-	PriceAssetId      proto.ColStr
-	OrderType         proto.ColInt32
-	Amount            proto.ColInt64
-	Price             proto.ColInt64
-	Timestamp         proto.ColDateTime64
-	Expiration        proto.ColDateTime64
-	MatcherFee        proto.ColInt64
-	MatcherFeeAssetId proto.ColStr
-	Proofs            *proto.ColArr[string]
-	Signature         proto.ColStr
-	Eip712Signature   proto.ColStr
-	PriceMode         proto.ColInt32
-	Height            proto.ColInt32
-}
-
-func NewTxs7OrdersBatch() *Txs7OrderBatch {
-	return &Txs7OrderBatch{
-		proto.ColInt64{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColInt32{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColInt32{},
-		proto.ColInt64{},
-		proto.ColInt64{},
-		proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true},
-		proto.ColDateTime64{Precision: proto.PrecisionMilli, PrecisionSet: true},
-		proto.ColInt64{},
-		proto.ColStr{},
-		new(proto.ColStr).Array(),
-		proto.ColStr{},
-		proto.ColStr{},
-		proto.ColInt32{},
-		proto.ColInt32{},
-	}
-}
-
-func (t *Txs7OrderBatch) Append(txs *Txs7Order) {
-	t.TxUid.AppendArr(txs.TxUid)
-	t.TxId.AppendArr(txs.TxId)
-	t.Id.AppendArr(txs.Id)
-	t.Version.AppendArr(txs.Version)
-	t.Sender.AppendArr(txs.Sender)
-	t.SenderPublicKey.AppendArr(txs.SenderPublicKey)
-	t.MatcherPublicKey.AppendArr(txs.MatcherPublicKey)
-	t.AmountAssetId.AppendArr(txs.AmountAssetId)
-	t.PriceAssetId.AppendArr(txs.PriceAssetId)
-	t.OrderType.AppendArr(txs.OrderType)
-	t.Amount.AppendArr(txs.Amount)
-	t.Price.AppendArr(txs.Price)
-	t.Timestamp.AppendArr(txs.Timestamp)
-	t.Expiration.AppendArr(txs.Expiration)
-	t.MatcherFee.AppendArr(txs.MatcherFee)
-	t.MatcherFeeAssetId.AppendArr(txs.MatcherFeeAssetId)
-	t.Proofs.AppendArr(txs.Proofs)
-	t.Signature.AppendArr(txs.Signature)
-	t.Eip712Signature.AppendArr(txs.Eip712Signature)
-	t.PriceMode.AppendArr(txs.PriceMode)
-	t.Height.AppendArr(txs.Height)
+	// Nested orders
+	t.OrdersId.AppendArr(txs.OrdersId)
+	t.OrdersVersion.AppendArr(txs.OrdersVersion)
+	t.OrdersSender.AppendArr(txs.OrdersSender)
+	t.OrdersSenderPublicKey.AppendArr(txs.OrdersSenderPublicKey)
+	t.OrdersMatcherPublicKey.AppendArr(txs.OrdersMatcherPublicKey)
+	t.OrdersAmountAssetId.AppendArr(txs.OrdersAmountAssetId)
+	t.OrdersPriceAssetId.AppendArr(txs.OrdersPriceAssetId)
+	t.OrdersOrderType.AppendArr(txs.OrdersOrderType)
+	t.OrdersAmount.AppendArr(txs.OrdersAmount)
+	t.OrdersPrice.AppendArr(txs.OrdersPrice)
+	t.OrdersTimestamp.AppendArr(txs.OrdersTimestamp)
+	t.OrdersExpiration.AppendArr(txs.OrdersExpiration)
+	t.OrdersMatcherFee.AppendArr(txs.OrdersMatcherFee)
+	t.OrdersMatcherFeeAssetId.AppendArr(txs.OrdersMatcherFeeAssetId)
+	t.OrdersProofs.AppendArr(txs.OrdersProofs)
+	t.OrdersSignature.AppendArr(txs.OrdersSignature)
+	t.OrdersEip712Signature.AppendArr(txs.OrdersEip712Signature)
+	t.OrdersPriceMode.AppendArr(txs.OrdersPriceMode)
 }
 
 type Txs8Batch struct {

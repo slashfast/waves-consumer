@@ -136,7 +136,6 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 
 			case *waves.Transaction_Exchange:
 				txs := updates.Txs7
-				txsOrders := updates.Txs7Orders
 				d := data.Exchange
 				metadata := transactionsMetadata[i].GetExchange()
 				fillBaseTx(txs.Txs, "success")
@@ -150,10 +149,30 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				txs.SellMatcherFee = append(txs.SellMatcherFee, d.SellMatcherFee)
 				txs.FeeAssetId = append(txs.FeeAssetId, utils.ExtractAssetId(wavesTx.Fee.AssetId))
 
+				// Parse nested orders (always 2: buy and sell)
+				orderId := make([]string, len(d.Orders))
+				orderVersion := make([]int32, len(d.Orders))
+				orderSender := make([]string, len(d.Orders))
+				orderSenderPublicKey := make([]string, len(d.Orders))
+				orderMatcherPublicKey := make([]string, len(d.Orders))
+				orderAmountAssetId := make([]string, len(d.Orders))
+				orderPriceAssetId := make([]string, len(d.Orders))
+				orderOrderType := make([]int32, len(d.Orders))
+				orderAmount := make([]int64, len(d.Orders))
+				orderPrice := make([]int64, len(d.Orders))
+				orderTimestamp := make([]time.Time, len(d.Orders))
+				orderExpiration := make([]time.Time, len(d.Orders))
+				orderMatcherFee := make([]int64, len(d.Orders))
+				orderMatcherFeeAssetId := make([]string, len(d.Orders))
+				orderProofs := make([][]string, len(d.Orders))
+				orderSignature := make([]string, len(d.Orders))
+				orderEip712Signature := make([]string, len(d.Orders))
+				orderPriceMode := make([]int32, len(d.Orders))
+
 				for i, order := range d.Orders {
 					proofs := make([]string, len(order.Proofs))
-					for i, proof := range order.Proofs {
-						proofs[i] = base58.Encode(proof)
+					for j, proof := range order.Proofs {
+						proofs[j] = base58.Encode(proof)
 					}
 
 					signature := ""
@@ -161,28 +180,44 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 						signature = proofs[0]
 					}
 
-					txsOrders.TxUid = append(txsOrders.TxUid, txUid)
-					txsOrders.TxId = append(txsOrders.TxId, txId)
-					txsOrders.Id = append(txsOrders.Id, base58.Encode(metadata.OrderIds[i]))
-					txsOrders.Version = append(txsOrders.Version, order.Version)
-					txsOrders.Sender = append(txsOrders.Sender, base58.Encode(metadata.OrderSenderAddresses[i]))
-					txsOrders.SenderPublicKey = append(txsOrders.SenderPublicKey, base58.Encode(metadata.OrderSenderPublicKeys[i]))
-					txsOrders.MatcherPublicKey = append(txsOrders.MatcherPublicKey, base58.Encode(order.MatcherPublicKey))
-					txsOrders.AmountAssetId = append(txsOrders.AmountAssetId, utils.ExtractAssetId(order.AssetPair.AmountAssetId))
-					txsOrders.PriceAssetId = append(txsOrders.PriceAssetId, utils.ExtractAssetId(order.AssetPair.PriceAssetId))
-					txsOrders.OrderType = append(txsOrders.OrderType, int32(order.OrderSide))
-					txsOrders.Amount = append(txsOrders.Amount, order.Amount)
-					txsOrders.Price = append(txsOrders.Price, order.Price)
-					txsOrders.Timestamp = append(txsOrders.Timestamp, time.UnixMilli(order.Timestamp))
-					txsOrders.Expiration = append(txsOrders.Expiration, time.UnixMilli(order.Expiration))
-					txsOrders.MatcherFee = append(txsOrders.MatcherFee, order.MatcherFee.Amount)
-					txsOrders.MatcherFeeAssetId = append(txsOrders.MatcherFeeAssetId, utils.ExtractAssetId(order.MatcherFee.AssetId))
-					txsOrders.Proofs = append(txsOrders.Proofs, proofs)
-					txsOrders.Signature = append(txsOrders.Signature, signature)
-					txsOrders.Eip712Signature = append(txsOrders.Eip712Signature, base58.Encode(order.GetEip712Signature()))
-					txsOrders.PriceMode = append(txsOrders.PriceMode, int32(order.PriceMode))
-					txsOrders.Height = append(txsOrders.Height, height)
+					orderId[i] = base58.Encode(metadata.OrderIds[i])
+					orderVersion[i] = order.Version
+					orderSender[i] = base58.Encode(metadata.OrderSenderAddresses[i])
+					orderSenderPublicKey[i] = base58.Encode(metadata.OrderSenderPublicKeys[i])
+					orderMatcherPublicKey[i] = base58.Encode(order.MatcherPublicKey)
+					orderAmountAssetId[i] = utils.ExtractAssetId(order.AssetPair.AmountAssetId)
+					orderPriceAssetId[i] = utils.ExtractAssetId(order.AssetPair.PriceAssetId)
+					orderOrderType[i] = int32(order.OrderSide)
+					orderAmount[i] = order.Amount
+					orderPrice[i] = order.Price
+					orderTimestamp[i] = time.UnixMilli(order.Timestamp)
+					orderExpiration[i] = time.UnixMilli(order.Expiration)
+					orderMatcherFee[i] = order.MatcherFee.Amount
+					orderMatcherFeeAssetId[i] = utils.ExtractAssetId(order.MatcherFee.AssetId)
+					orderProofs[i] = proofs
+					orderSignature[i] = signature
+					orderEip712Signature[i] = base58.Encode(order.GetEip712Signature())
+					orderPriceMode[i] = int32(order.PriceMode)
 				}
+
+				txs.OrdersId = append(txs.OrdersId, orderId)
+				txs.OrdersVersion = append(txs.OrdersVersion, orderVersion)
+				txs.OrdersSender = append(txs.OrdersSender, orderSender)
+				txs.OrdersSenderPublicKey = append(txs.OrdersSenderPublicKey, orderSenderPublicKey)
+				txs.OrdersMatcherPublicKey = append(txs.OrdersMatcherPublicKey, orderMatcherPublicKey)
+				txs.OrdersAmountAssetId = append(txs.OrdersAmountAssetId, orderAmountAssetId)
+				txs.OrdersPriceAssetId = append(txs.OrdersPriceAssetId, orderPriceAssetId)
+				txs.OrdersOrderType = append(txs.OrdersOrderType, orderOrderType)
+				txs.OrdersAmount = append(txs.OrdersAmount, orderAmount)
+				txs.OrdersPrice = append(txs.OrdersPrice, orderPrice)
+				txs.OrdersTimestamp = append(txs.OrdersTimestamp, orderTimestamp)
+				txs.OrdersExpiration = append(txs.OrdersExpiration, orderExpiration)
+				txs.OrdersMatcherFee = append(txs.OrdersMatcherFee, orderMatcherFee)
+				txs.OrdersMatcherFeeAssetId = append(txs.OrdersMatcherFeeAssetId, orderMatcherFeeAssetId)
+				txs.OrdersProofs = append(txs.OrdersProofs, orderProofs)
+				txs.OrdersSignature = append(txs.OrdersSignature, orderSignature)
+				txs.OrdersEip712Signature = append(txs.OrdersEip712Signature, orderEip712Signature)
+				txs.OrdersPriceMode = append(txs.OrdersPriceMode, orderPriceMode)
 
 			case *waves.Transaction_Lease:
 				txs := updates.Txs8
