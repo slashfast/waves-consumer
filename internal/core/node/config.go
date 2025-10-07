@@ -1,6 +1,8 @@
 package node
 
-import "time"
+import (
+	"time"
+)
 
 type ConfigProvider interface {
 	NodeAddress() string
@@ -10,8 +12,8 @@ type ConfigProvider interface {
 
 type Config struct {
 	Address        string
-	Secure         bool
 	NewHeightDelay time.Duration
+	Secure         bool
 }
 
 func NewConfigFromProvider(provider ConfigProvider) Config {

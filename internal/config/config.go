@@ -23,18 +23,16 @@ const (
 )
 
 type Config struct {
-	nodeAddress        string
-	nodeSecure         bool
-	nodeNewHeightDelay time.Duration
-
+	nodeAddress           string
+	storeDsn              string
 	updatesAddress        string
-	updatesSecure         bool
+	nodeNewHeightDelay    time.Duration
 	updatesBufferSize     int32
 	updatesMaxWorkers     int32
 	updatesAfterSyncDelay time.Duration
-
-	storeDsn        string
-	storeBufferSize int32
+	storeBufferSize       int32
+	updatesSecure         bool
+	nodeSecure            bool
 }
 
 func (c Config) NodeAddress() string {

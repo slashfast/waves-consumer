@@ -12,10 +12,10 @@ type ConfigProvider interface {
 
 type Config struct {
 	Address        string
-	Secure         bool
+	AfterSyncDelay time.Duration
 	BufferSize     int32
 	MaxWorkers     int32
-	AfterSyncDelay time.Duration
+	Secure         bool
 }
 
 func NewConfigFromProvider(provider ConfigProvider) Config {
