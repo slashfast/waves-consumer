@@ -28,7 +28,9 @@ type Api struct {
 func NewApi(ctx context.Context, logger *zerolog.Logger, config Config) (*Api, error) {
 	var creds credentials.TransportCredentials
 	if config.Secure {
-		creds = credentials.NewTLS(&tls.Config{})
+		creds = credentials.NewTLS(&tls.Config{
+			MinVersion: tls.VersionTLS12,
+		})
 	} else {
 		creds = insecure.NewCredentials()
 	}
