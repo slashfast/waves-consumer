@@ -381,8 +381,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 
 			txs.Bytes = append(txs.Bytes, utils.ToBase64(signedTx.EthereumTransaction))
 
-			switch actionMetadata := metadata.Action.(type) {
-			case *events.TransactionMetadata_EthereumMetadata_Invoke:
+			if actionMetadata, ok := metadata.Action.(*events.TransactionMetadata_EthereumMetadata_Invoke); ok {
 				if actionMetadata.Invoke.Result.GetErrorMessage() != nil {
 					txStatus = "script_execution_failed"
 				}
@@ -394,7 +393,6 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 					if err != nil {
 						return nil, err
 					}
-
 				}
 
 				for i, payment := range actionMetadata.Invoke.Payments {

@@ -58,17 +58,14 @@ func (app App) run() {
 }
 
 func NewLogger(lc fx.Lifecycle) (*zerolog.Logger, error) {
-	//wr := diode.NewWriter(os.Stderr, 1000, 0, func(missed int) {
-	//	log.Warn().Msgf("Logger dropped %d messages", missed)
-	//})
 	wr := os.Stderr
 
-	err := os.MkdirAll("logs", 0744)
+	err := os.MkdirAll("logs", 0o744)
 	if err != nil {
 		return nil, err
 	}
 
-	lf, err := os.OpenFile("logs/"+time.Now().Format(time.RFC3339)+".log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0744)
+	lf, err := os.OpenFile("logs/"+time.Now().Format(time.RFC3339)+".log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o744)
 	if err != nil {
 		return nil, err
 	}
@@ -100,11 +97,12 @@ func main() {
 	fx.New(
 		fx.Invoke(func() {
 			zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-			if traceMode {
+			switch {
+			case traceMode:
 				zerolog.SetGlobalLevel(zerolog.TraceLevel)
-			} else if debugMode {
+			case debugMode:
 				zerolog.SetGlobalLevel(zerolog.DebugLevel)
-			} else {
+			default:
 				zerolog.SetGlobalLevel(zerolog.InfoLevel)
 			}
 		}),
