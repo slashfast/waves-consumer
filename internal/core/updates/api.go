@@ -96,21 +96,6 @@ func Provider(ctx context.Context, lc fx.Lifecycle, logger *zerolog.Logger, conf
 	return api, nil
 }
 
-func (a *Api) runHeightBufferFiller(ch chan int32, start int32) {
-	defer close(ch)
-
-	current := start
-
-	for {
-		select {
-		case <-a.ctx.Done():
-			return
-		case ch <- current:
-			current++
-		}
-	}
-}
-
 func (a *Api) StartConsumer(outCh chan<- store.Update, heightCh <-chan int32) {
 	wg := &sync.WaitGroup{}
 	wg.Add(int(a.cfg.MaxWorkers))
