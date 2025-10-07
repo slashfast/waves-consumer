@@ -81,14 +81,14 @@ func Provider(ctx context.Context, lc fx.Lifecycle, logger *zerolog.Logger, conf
 			if err != nil {
 				return err
 			}
-			api.log.Info().Msg("Updates GRPC probe is OK")
+			api.log.Info().Msg("blockchain node gRPC test is OK")
 			return nil
 		},
 		OnStop: func(_ context.Context) error {
 			if err := api.Close(); err != nil {
 				return err
 			}
-			api.log.Info().Msg("Updates GRPC connection is closed")
+			api.log.Info().Msg("gRPC to the blockchain node is closed")
 			return nil
 		},
 	})
