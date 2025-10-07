@@ -108,6 +108,7 @@ func (a *Api) currentHeight() (int32, error) {
 	if err != nil {
 		return 0, err
 	}
+	// #nosec G115 -- the height of the blockchain will never exceed int32, overflow is impossible
 	return int32(resp.Value), nil
 }
 

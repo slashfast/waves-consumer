@@ -260,6 +260,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				for i, transfer := range d.Transfers {
 					txsTransfers.TxUid = append(txsTransfers.TxUid, txUid)
 					txsTransfers.TxId = append(txsTransfers.TxId, txId)
+					// #nosec G115 -- number of transfers is always reasonable, no overflow possible
 					txsTransfers.PositionInTx = append(txsTransfers.PositionInTx, int32(i))
 					txsTransfers.RecipientAddress = append(txsTransfers.RecipientAddress, utils.MustAddressFromBody(metadata.RecipientsAddresses[i]))
 					txsTransfers.RecipientAlias = append(txsTransfers.RecipientAlias, transfer.Recipient.GetAlias())
@@ -288,6 +289,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 					}
 					txsData.TxUid = append(txsData.TxUid, txUid)
 					txsData.TxId = append(txsData.TxId, txId)
+					// #nosec G115 -- number of entries is always reasonable, no overflow possible
 					txsData.PositionInTx = append(txsData.PositionInTx, int32(i))
 					txsData.DataKey = append(txsData.DataKey, utils.EscapeUnicodeNull(dataEntry.Key))
 					txsData.DataType = append(txsData.DataType, dataType)
@@ -343,6 +345,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				txs.FeeAssetId = append(txs.FeeAssetId, utils.ExtractAssetId(wavesTx.Fee.AssetId))
 
 				for i, arg := range metadata.Arguments {
+					// #nosec G115 -- number of arguments is always reasonable, no overflow possible
 					err := AppendTxArg(txsArgs, arg, txId, txUid, int32(i), height)
 					if err != nil {
 						return nil, err
@@ -350,6 +353,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				}
 
 				for i, payment := range metadata.Payments {
+					// #nosec G115 -- number of payments is always reasonable, no overflow possible
 					AppendTxPayment(txsPayments, payment, txId, txUid, int32(i), height)
 				}
 
@@ -385,6 +389,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				funcName = actionMetadata.Invoke.FunctionName
 
 				for i, arg := range actionMetadata.Invoke.Arguments {
+					// #nosec G115 -- number of arguments is always reasonable, no overflow possible
 					err := AppendTxArg(updates.Txs18Args, arg, txId, txUid, int32(i), height)
 					if err != nil {
 						return nil, err
@@ -393,6 +398,7 @@ func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates
 				}
 
 				for i, payment := range actionMetadata.Invoke.Payments {
+					// #nosec G115 -- number of payments is always reasonable, no overflow possible
 					AppendTxPayment(updates.Txs18Payments, payment, txId, txUid, int32(i), height)
 				}
 			}

@@ -157,9 +157,9 @@ func (c *Connector) runParser(parsedBlocksCh chan *Updates, currentHeightCh chan
 				buffCap = heightDelta
 			}
 
-			buffLen := int32(len(updatesBuffer.Blocks.Height))
+			buffLen := len(updatesBuffer.Blocks.Height)
 
-			if buffLen == buffCap {
+			if buffLen == int(buffCap) {
 				err := c.flushBuffer(updatesBuffer)
 				if err != nil {
 					c.log.Fatal().Err(err).Msg("failed to flush buffer")
