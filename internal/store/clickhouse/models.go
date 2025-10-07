@@ -2,6 +2,7 @@ package clickhouse
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -508,7 +509,7 @@ func AppendTxArg(argsPtr *TxsArgs, arg *waves.InvokeScriptResult_Call_Argument, 
 
 	argValueList, err := json.Marshal(arg.GetList())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal argument list: %w", err)
 	}
 
 	argsPtr.TxUID = append(argsPtr.TxUID, txUID)

@@ -3,6 +3,7 @@ package clickhouse
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"runtime"
 	"sync"
@@ -18,7 +19,7 @@ import (
 func dsnIntoOpts(dsn string) (*ch.Options, error) {
 	u, err := url.Parse(dsn)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse DSN: %w", err)
 	}
 
 	password, _ := u.User.Password()
@@ -49,7 +50,7 @@ func NewConnector(ctx context.Context, lc fx.Lifecycle, l *zerolog.Logger, confi
 
 	conn, err := ch.Dial(context.Background(), *opts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to ClickHouse: %w", err)
 	}
 
 	wg := &sync.WaitGroup{}
@@ -83,7 +84,7 @@ func (c *Connector) Height() (int32, error) {
 	})
 
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to query max height: %w", err)
 	}
 
 	return maxHeightResult[0], nil
@@ -188,7 +189,7 @@ func (c *Connector) flushBuffer(buff *UpdatesBatch) error {
 			},
 		})
 		if err != nil {
-			return errors.Join(err, errors.New(table))
+			return fmt.Errorf("failed to insert into table %s: %w", table, errors.Join(err, errors.New(table)))
 		}
 	}
 

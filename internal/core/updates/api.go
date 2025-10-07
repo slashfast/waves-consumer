@@ -3,6 +3,7 @@ package updates
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"sync"
 
 	"github.com/rs/zerolog"
@@ -57,7 +58,7 @@ func NewAPI(ctx context.Context, logger *zerolog.Logger, config Config) (*API, e
 		}`),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create gRPC client: %w", err)
 	}
 
 	client := bu.NewBlockchainUpdatesApiClient(conn)
@@ -84,7 +85,7 @@ func Provider(ctx context.Context, lc fx.Lifecycle, logger *zerolog.Logger, conf
 			request := &bu.GetBlockUpdateRequest{Height: 1}
 			_, err := api.client.GetBlockUpdate(ctx, request)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to test gRPC connection: %w", err)
 			}
 			api.log.Info().Msg("blockchain node gRPC test is OK")
 			return nil
@@ -150,5 +151,9 @@ func (a *API) NewUpdatesChannel() chan store.Update {
 }
 
 func (a *API) Close() error {
-	return a.conn.Close()
+	err := a.conn.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close gRPC connection: %w", err)
+	}
+	return nil
 }

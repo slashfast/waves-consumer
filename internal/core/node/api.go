@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -54,7 +55,7 @@ func NewAPI(ctx context.Context, logger *zerolog.Logger, config Config) (*API, e
 		}`),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create gRPC client: %w", err)
 	}
 
 	blocksClient := node.NewBlocksApiClient(conn)
@@ -79,7 +80,7 @@ func Provider(ctx context.Context, lc fx.Lifecycle, logger *zerolog.Logger, conf
 	lc.Append(fx.Hook{
 		OnStart: func(_ context.Context) error {
 			if _, err := api.blocksClient.GetCurrentHeight(ctx, &emptypb.Empty{}); err != nil {
-				return err
+				return fmt.Errorf("failed to probe node GRPC: %w", err)
 			}
 			api.log.Info().Msg("Node GRPC probe is OK")
 			return nil
@@ -108,7 +109,7 @@ func (a *API) CurrentHeight() int32 {
 func (a *API) currentHeight() (int32, error) {
 	resp, err := a.blocksClient.GetCurrentHeight(a.ctx, &emptypb.Empty{})
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to get current height: %w", err)
 	}
 	// #nosec G115 -- the height of the blockchain will never exceed int32, overflow is impossible
 	return int32(resp.Value), nil
@@ -178,5 +179,9 @@ func (a *API) StartHeightProvider(outputCh chan int32, start int32) {
 }
 
 func (a *API) Close() error {
-	return a.conn.Close()
+	err := a.conn.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close gRPC connection: %w", err)
+	}
+	return nil
 }

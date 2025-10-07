@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -62,12 +63,12 @@ func NewLogger(lc fx.Lifecycle) (*zerolog.Logger, error) {
 
 	err := os.MkdirAll("logs", 0o744)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create logs directory: %w", err)
 	}
 
 	lf, err := os.OpenFile("logs/"+time.Now().Format(time.RFC3339)+".log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o744)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open log file: %w", err)
 	}
 
 	logger := zerolog.
