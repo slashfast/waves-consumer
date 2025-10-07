@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/slashfast/wavesconsumer/v2/pkg/utils"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+
+	"github.com/slashfast/wavesconsumer/v2/pkg/utils"
 )
 
 const (

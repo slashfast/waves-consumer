@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog"
-	"github.com/slashfast/wavesconsumer/v2/internal/store"
 	bu "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/events/grpc"
 	"go.uber.org/fx"
 	"google.golang.org/grpc"
@@ -14,6 +13,8 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+
+	"github.com/slashfast/wavesconsumer/v2/internal/store"
 )
 
 type Api struct {

@@ -11,12 +11,13 @@ import (
 
 	fxzerolog "github.com/efectn/fx-zerolog"
 	"github.com/rs/zerolog"
+	"go.uber.org/fx"
+
 	"github.com/slashfast/wavesconsumer/v2/internal/config"
 	"github.com/slashfast/wavesconsumer/v2/internal/core/node"
 	"github.com/slashfast/wavesconsumer/v2/internal/core/updates"
 	"github.com/slashfast/wavesconsumer/v2/internal/store"
 	"github.com/slashfast/wavesconsumer/v2/internal/store/clickhouse"
-	"go.uber.org/fx"
 )
 
 type App struct {

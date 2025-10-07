@@ -3,14 +3,16 @@ package clickhouse
 import (
 	"context"
 	"errors"
-	"github.com/ClickHouse/ch-go"
-	"github.com/ClickHouse/ch-go/proto"
-	"github.com/rs/zerolog"
-	"github.com/slashfast/wavesconsumer/v2/internal/store"
-	"go.uber.org/fx"
 	"net/url"
 	"runtime"
 	"sync"
+
+	"github.com/ClickHouse/ch-go"
+	"github.com/ClickHouse/ch-go/proto"
+	"github.com/rs/zerolog"
+	"go.uber.org/fx"
+
+	"github.com/slashfast/wavesconsumer/v2/internal/store"
 )
 
 func dsnIntoOpts(dsn string) (*ch.Options, error) {

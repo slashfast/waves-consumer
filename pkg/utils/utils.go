@@ -2,9 +2,10 @@ package utils
 
 import (
 	"encoding/base64"
+	"strings"
+
 	"github.com/mr-tron/base58"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"strings"
 )
 
 const (

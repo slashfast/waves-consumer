@@ -3,6 +3,8 @@ package node
 import (
 	"context"
 	"crypto/tls"
+	"time"
+
 	"github.com/rs/zerolog"
 	node "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"go.uber.org/fx"
@@ -10,7 +12,6 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"time"
 )
 
 type Api struct {

@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/slashfast/wavesconsumer/v2/internal/config"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/exp/rand"
+
+	"github.com/slashfast/wavesconsumer/v2/internal/config"
 )
 
 func NewTestNode(ctx context.Context) (*Api, error) {

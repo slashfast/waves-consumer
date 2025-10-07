@@ -4,10 +4,11 @@ import (
 	"time"
 
 	"github.com/mr-tron/base58"
-	"github.com/slashfast/wavesconsumer/v2/pkg/utils"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/events"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+
+	"github.com/slashfast/wavesconsumer/v2/pkg/utils"
 )
 
 func (c *Connector) parseUpdate(blockUpdate *events.BlockchainUpdated) (*Updates, error) {
