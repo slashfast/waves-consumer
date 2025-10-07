@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"io"
-	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"strings"
 	"time"
@@ -98,16 +96,6 @@ func NewContext(lc fx.Lifecycle) context.Context {
 func main() {
 	traceMode := strings.ToLower(os.Getenv("TRACE")) == "true"
 	debugMode := strings.ToLower(os.Getenv("DEBUG")) == "true"
-	enableProfiler := traceMode || debugMode
-
-	if enableProfiler {
-		go func() {
-			err := http.ListenAndServe("localhost:6060", nil)
-			if err != nil {
-				panic(err)
-			}
-		}()
-	}
 
 	fx.New(
 		fx.Invoke(func() {
