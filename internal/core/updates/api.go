@@ -85,11 +85,11 @@ func Provider(ctx context.Context, lc fx.Lifecycle, logger *zerolog.Logger, conf
 			return nil
 		},
 		OnStop: func(_ context.Context) error {
-			err := api.Close()
-			if err != nil {
-				api.log.Info().Msg("Updates GRPC connection is closed")
+			if err := api.Close(); err != nil {
+				return err
 			}
-			return err
+			api.log.Info().Msg("Updates GRPC connection is closed")
+			return nil
 		},
 	})
 
