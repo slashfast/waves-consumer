@@ -21,7 +21,6 @@ type Updates struct {
 	Txs5           *Txs5
 	Txs6           *Txs6
 	Txs7           *Txs7
-	Txs7Orders     *Txs7Order
 	Txs8           *Txs8
 	Txs9           *Txs9
 	Txs10          *Txs10
@@ -53,7 +52,6 @@ func NewUpdates() *Updates {
 		NewTxs5(),
 		NewTxs6(),
 		NewTxs7(),
-		NewTxs7Orders(),
 		NewTxs8(),
 		NewTxs9(),
 		NewTxs10(),
@@ -235,6 +233,26 @@ type Txs7 struct {
 	BuyMatcherFee  []int64
 	SellMatcherFee []int64
 	FeeAssetId     []string
+
+	// Nested orders (always 2: buy and sell)
+	OrdersId                [][]string
+	OrdersVersion           [][]int32
+	OrdersSender            [][]string
+	OrdersSenderPublicKey   [][]string
+	OrdersMatcherPublicKey  [][]string
+	OrdersAmountAssetId     [][]string
+	OrdersPriceAssetId      [][]string
+	OrdersOrderType         [][]int32
+	OrdersAmount            [][]int64
+	OrdersPrice             [][]int64
+	OrdersTimestamp         [][]time.Time
+	OrdersExpiration        [][]time.Time
+	OrdersMatcherFee        [][]int64
+	OrdersMatcherFeeAssetId [][]string
+	OrdersProofs            [][][]string
+	OrdersSignature         [][]string
+	OrdersEip712Signature   [][]string
+	OrdersPriceMode         [][]int32
 }
 
 func NewTxs7() *Txs7 {
@@ -247,56 +265,26 @@ func NewTxs7() *Txs7 {
 		[]int64{},
 		[]int64{},
 		[]string{},
-	}
-}
 
-type Txs7Order struct {
-	TxUid             []int64
-	TxId              []string
-	Id                []string
-	Version           []int32
-	Sender            []string
-	SenderPublicKey   []string
-	MatcherPublicKey  []string
-	AmountAssetId     []string
-	PriceAssetId      []string
-	OrderType         []int32
-	Amount            []int64
-	Price             []int64
-	Timestamp         []time.Time
-	Expiration        []time.Time
-	MatcherFee        []int64
-	MatcherFeeAssetId []string
-	Proofs            [][]string
-	Signature         []string
-	Eip712Signature   []string
-	PriceMode         []int32
-	Height            []int32
-}
-
-func NewTxs7Orders() *Txs7Order {
-	return &Txs7Order{
-		[]int64{},
-		[]string{},
-		[]string{},
-		[]int32{},
-		[]string{},
-		[]string{},
-		[]string{},
-		[]string{},
-		[]string{},
-		[]int32{},
-		[]int64{},
-		[]int64{},
-		[]time.Time{},
-		[]time.Time{},
-		[]int64{},
-		[]string{},
+		// Nested orders
 		[][]string{},
-		[]string{},
-		[]string{},
-		[]int32{},
-		[]int32{},
+		[][]int32{},
+		[][]string{},
+		[][]string{},
+		[][]string{},
+		[][]string{},
+		[][]string{},
+		[][]int32{},
+		[][]int64{},
+		[][]int64{},
+		[][]time.Time{},
+		[][]time.Time{},
+		[][]int64{},
+		[][]string{},
+		[][][]string{},
+		[][]string{},
+		[][]string{},
+		[][]int32{},
 	}
 }
 

@@ -1,5 +1,6 @@
-.*env
-wavesconsumer
-*.json
 .idea
+
 logs
+volumes
+
+.*env
